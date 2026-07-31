@@ -1,0 +1,15 @@
+name: wave_return
+description: >
+  Same as `wave` with the wrist flicked the other way, for the back-and-forth
+  motion in `wave_animation`.
+joints:
+  right_shoulder:
+    rotation_deg: { z: -55.0, y: -28.0 }
+  right_elbow:
+    rotation_deg: { z: -95.0 }
+  right_wrist:
+    rotation_deg: { z: -30.0 }
+  left_shoulder:
+    rotation_deg: { z: -72.0 }
+  left_elbow:
+    rotation_deg: { z: -12.0 }

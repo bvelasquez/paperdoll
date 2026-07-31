@@ -1,0 +1,10 @@
+[package]
+name = "paperdoll-rig"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+glam = { workspace = true, features = ["serde"] }
+serde.workspace = true
+serde_yaml.workspace = true
+thiserror.workspace = true

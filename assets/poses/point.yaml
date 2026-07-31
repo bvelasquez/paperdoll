@@ -1,0 +1,22 @@
+name: point
+description: >
+  Right arm extended forward toward the camera, left arm down, slight torso yaw.
+  Best read with a frontal camera (yaw near 0) — see the `point_hero` animation.
+joints:
+  right_shoulder:
+    rotation_deg: { y: -75.0, z: -8.0 }
+  right_elbow:
+    rotation_deg: { z: -8.0 }
+  left_shoulder:
+    rotation_deg: { z: -55.0 }
+  left_elbow:
+    rotation_deg: { z: -18.0 }
+  chest:
+    rotation_deg: { y: -12.0 }
+  neck:
+    rotation_deg: { y: -8.0 }
+camera:
+  yaw_deg: 8.0
+  pitch_deg: 6.0
+  distance: 3.6
+  look_at: [0.0, 1.0, 0.0]

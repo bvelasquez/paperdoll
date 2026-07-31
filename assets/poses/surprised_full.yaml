@@ -1,0 +1,30 @@
+name: surprised_full
+description: >
+  Full-body shock: hands near face, leaning back, wide eyes, dropped jaw.
+joints:
+  right_shoulder:
+    rotation_deg: { x: 0.0, y: 55.0, z: -35.0 }
+  right_elbow:
+    rotation_deg: { x: 0.0, y: 0.0, z: -125.0 }
+  left_shoulder:
+    rotation_deg: { x: 0.0, y: 55.0, z: 35.0 }
+  left_elbow:
+    rotation_deg: { x: 0.0, y: 0.0, z: 125.0 }
+  right_wrist:
+    rotation_deg: { x: 0.0, y: 0.0, z: 40.0 }
+  left_wrist:
+    rotation_deg: { x: 0.0, y: 0.0, z: -40.0 }
+  spine:
+    rotation_deg: { x: -8.0, y: 0.0, z: 0.0 }
+  neck:
+    rotation_deg: { x: -5.0, y: 0.0, z: 0.0 }
+  left_eyebrow:
+    rotation_deg: { x: 0.0, y: 0.0, z: -30.0 }
+  right_eyebrow:
+    rotation_deg: { x: 0.0, y: 0.0, z: 30.0 }
+  left_eyelid:
+    rotation_deg: { x: -12.0, y: 0.0, z: 0.0 }
+  right_eyelid:
+    rotation_deg: { x: -12.0, y: 0.0, z: 0.0 }
+  jaw:
+    rotation_deg: { x: 45.0, y: 0.0, z: 0.0 }

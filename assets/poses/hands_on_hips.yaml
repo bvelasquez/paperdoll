@@ -1,0 +1,16 @@
+name: hands_on_hips
+description: >
+  Confident "power stance": both hands resting on the hips, elbows out.
+  Demonstrates the mirrored-sign convention documented in GET /capabilities —
+  the left/right shoulder and elbow rotations are equal magnitude, opposite
+  sign, because the two arms' rest offsets point in opposite local
+  directions.
+joints:
+  right_shoulder:
+    rotation_deg: { z: 45.0 }
+  right_elbow:
+    rotation_deg: { z: 90.0 }
+  left_shoulder:
+    rotation_deg: { z: -45.0 }
+  left_elbow:
+    rotation_deg: { z: -90.0 }

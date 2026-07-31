@@ -1,0 +1,16 @@
+name: peace_sign_right
+description: >
+  Right arm up in a peace sign, head tilted — kawaii vibes.
+joints:
+  right_shoulder:
+    rotation_deg: { x: 0.0, y: 15.0, z: -88.0 }
+  right_elbow:
+    rotation_deg: { x: 0.0, y: 0.0, z: -8.0 }
+  left_shoulder:
+    rotation_deg: { x: 0.0, y: 0.0, z: -50.0 }
+  left_elbow:
+    rotation_deg: { x: 0.0, y: 0.0, z: -15.0 }
+  neck:
+    rotation_deg: { x: 0.0, y: 0.0, z: 12.0 }
+  pelvis:
+    rotation_deg: { x: 0.0, y: 0.0, z: 5.0 }

@@ -1,0 +1,35 @@
+name: point_hero
+description: >
+  Push into a frontal close-up while pointing at the viewer, hold, then pull back.
+loop: false
+keyframes:
+  - pose: idle
+    duration_ms: 300
+    easing: ease_out
+    camera:
+      yaw_deg: 40.0
+      pitch_deg: 12.0
+      distance: 5.0
+  - pose: point
+    duration_ms: 700
+    easing: ease_in_out
+    camera:
+      yaw_deg: 0.0
+      pitch_deg: 4.0
+      distance: 3.0
+      look_at: [0.0, 1.05, 0.0]
+  - pose: point
+    duration_ms: 900
+    easing: linear
+    camera:
+      yaw_deg: -5.0
+      pitch_deg: 3.0
+      distance: 2.7
+  - pose: idle
+    duration_ms: 700
+    easing: ease_in_out
+    camera:
+      yaw_deg: 35.5
+      pitch_deg: 9.2
+      distance: 4.36
+      look_at: [0.0, 0.9, 0.0]

@@ -1,0 +1,15 @@
+name: angry
+description: >
+  Glare: brows furrowed hard (inner sides down), eyelids lowered, jaw set tight.
+  Face-only pose — pair with a body pose in an animation via `hold: true`.
+joints:
+  left_eyebrow:
+    rotation_deg: { x: 0.0, y: 0.0, z: 24.0 }
+  right_eyebrow:
+    rotation_deg: { x: 0.0, y: 0.0, z: -24.0 }
+  left_eyelid:
+    rotation_deg: { x: 22.0, y: 0.0, z: 0.0 }
+  right_eyelid:
+    rotation_deg: { x: 22.0, y: 0.0, z: 0.0 }
+  jaw:
+    rotation_deg: { x: 6.0, y: 0.0, z: 0.0 }

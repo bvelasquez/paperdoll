@@ -1,0 +1,26 @@
+name: happy_idle
+description: >
+  Relaxed idle stance with a bright happy face — good default "alive" look.
+joints:
+  left_elbow:
+    rotation_deg: { x: 0.0, y: 0.0, z: -10.0 }
+  left_shoulder:
+    rotation_deg: { x: 0.0, y: 0.0, z: -78.0 }
+  right_elbow:
+    rotation_deg: { x: 0.0, y: 0.0, z: 95.0 }
+  right_shoulder:
+    rotation_deg: { x: 0.0, y: 0.0, z: 42.0 }
+  left_eyebrow:
+    rotation_deg: { x: 0.0, y: 0.0, z: -14.0 }
+  right_eyebrow:
+    rotation_deg: { x: 0.0, y: 0.0, z: 14.0 }
+  left_eyelid:
+    rotation_deg: { x: 5.0, y: 0.0, z: 0.0 }
+  right_eyelid:
+    rotation_deg: { x: 5.0, y: 0.0, z: 0.0 }
+  jaw:
+    rotation_deg: { x: 14.0, y: 0.0, z: 0.0 }
+  left_blush:
+    translation: [0.075, -0.025, 0.07]
+  right_blush:
+    translation: [-0.075, -0.025, 0.07]

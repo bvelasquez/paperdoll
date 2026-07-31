@@ -1,0 +1,30 @@
+name: happy_bounce
+description: >
+  Cute one-shot celebration — smiling happy idle, a blink, arms-up victory, then
+  settle back to idle. Gentle camera bounce throughout.
+loop: false
+keyframes:
+  - pose: happy_idle
+    duration_ms: 280
+    easing: ease_in_out
+    camera: { yaw_deg: 35.0, pitch_deg: 8.0, distance: 4.0, look_at: [0.0, 0.9, 0.0] }
+  - joints:
+      left_eyelid:
+        rotation_deg: { x: 85.0, y: 0.0, z: 0.0 }
+      right_eyelid:
+        rotation_deg: { x: 85.0, y: 0.0, z: 0.0 }
+    hold: true
+    duration_ms: 90
+    easing: step
+  - pose: victory
+    duration_ms: 200
+    easing: ease_in_out
+    camera: { yaw_deg: 35.0, pitch_deg: 14.0, distance: 3.6, look_at: [0.0, 1.0, 0.0] }
+  - pose: happy_idle
+    duration_ms: 320
+    easing: ease_in_out
+    camera: { yaw_deg: 40.0, pitch_deg: 10.0, distance: 4.2, look_at: [0.0, 0.9, 0.0] }
+  - pose: idle
+    duration_ms: 400
+    easing: ease_in_out
+    camera: { yaw_deg: 35.5, pitch_deg: 9.2, distance: 4.36, look_at: [0.0, 0.9, 0.0] }

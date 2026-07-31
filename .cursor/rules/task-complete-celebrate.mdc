@@ -1,0 +1,37 @@
+---
+description: On meaningful task completion, play a paperdoll celebration and speak via broker-cli
+alwaysApply: true
+---
+
+# Task complete: celebrate + speak
+
+When a **real multi-step task succeeds** (build, fix, deploy, PR, commit, or user asks to celebrate), do **both** before finishing the reply. Chat text alone is not enough.
+
+Skip trivial one-liners unless the user asks.
+
+## 1. Paperdoll animation (required)
+
+Follow the **paperdoll-celebrate** skill (`~/.cursor/skills/paperdoll-celebrate/SKILL.md`):
+
+1. `GET /animations` and `GET /poses` (default base `http://127.0.0.1:7878`)
+2. Pick **one random** fun live animation (prefer animation over pose); do not repeat the same name twice in a row
+3. `POST /animation` with `{"name":"..."}` (expect 202)
+
+If unreachable, try once to start paperdoll; if still down, note briefly and continue — do not block.
+
+## 2. broker-cli speak (required alongside)
+
+Follow the **broker-cli** skill (`~/.cursor/skills/broker-cli/SKILL.md`):
+
+```bash
+broker-cli speak "<short done message>" --voice Leda --json
+```
+
+- Always `--voice Leda` and `--json`
+- Speak only for **done / update / attention** — never announce starts
+- Keep under ~200 characters; prefix with a short project label when useful
+- If broker is down, note briefly and continue — do not block
+
+## Reply
+
+One short line naming the animation that played (and that speak ran). Do not dump curl unless debugging.

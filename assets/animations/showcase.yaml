@@ -1,0 +1,70 @@
+name: showcase
+description: >
+  Pose board walkthrough with camera beats: idle → hands_on_hips → think →
+  point (frontal) → shrug → bow → victory with a short orbit.
+loop: false
+keyframes:
+  - pose: idle
+    duration_ms: 400
+    easing: ease_out
+    camera:
+      yaw_deg: 35.5
+      pitch_deg: 9.2
+      distance: 4.36
+  - pose: hands_on_hips
+    duration_ms: 550
+    easing: ease_in_out
+    camera:
+      yaw_deg: 50.0
+      pitch_deg: 8.0
+      distance: 4.0
+  - pose: think
+    duration_ms: 600
+    easing: ease_in_out
+    camera:
+      yaw_deg: 20.0
+      pitch_deg: 4.0
+      distance: 3.5
+      look_at: [0.1, 1.2, 0.0]
+  - pose: point
+    duration_ms: 550
+    easing: ease_in_out
+    camera:
+      yaw_deg: 5.0
+      pitch_deg: 5.0
+      distance: 3.5
+  - pose: shrug
+    duration_ms: 500
+    easing: ease_in_out
+    camera:
+      yaw_deg: 40.0
+      pitch_deg: 10.0
+      distance: 3.9
+  - pose: bow
+    duration_ms: 650
+    easing: ease_in_out
+    camera:
+      yaw_deg: 25.0
+      pitch_deg: 14.0
+      distance: 3.7
+      look_at: [0.0, 0.65, 0.0]
+  - pose: victory
+    duration_ms: 700
+    easing: ease_out
+    camera:
+      yaw_deg: 0.0
+      pitch_deg: 8.0
+      distance: 4.2
+  - camera:
+      yaw_deg: 90.0
+      distance: 4.5
+    duration_ms: 800
+    easing: ease_in_out
+  - pose: idle
+    duration_ms: 700
+    easing: ease_in_out
+    camera:
+      yaw_deg: 35.5
+      pitch_deg: 9.2
+      distance: 4.36
+      look_at: [0.0, 0.9, 0.0]

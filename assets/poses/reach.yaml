@@ -1,0 +1,16 @@
+name: reach
+description: >
+  Reaching up and slightly forward with the right arm, torso leaning into it,
+  left arm relaxed. Demonstrates a large shoulder raise (z past vertical) plus
+  a mild spine/chest yaw.
+joints:
+  right_shoulder:
+    rotation_deg: { z: -105.0, y: -40.0 }
+  right_elbow:
+    rotation_deg: { z: -25.0 }
+  left_shoulder:
+    rotation_deg: { z: -45.0 }
+  spine:
+    rotation_deg: { x: -6.0, y: -8.0 }
+  chest:
+    rotation_deg: { y: -12.0 }

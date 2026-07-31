@@ -1,0 +1,16 @@
+name: wave
+description: >
+  Right arm raised in a cartoon wave (upper arm out, forearm up), left arm
+  relaxed at the side. From T-pose rest, right_* raise uses negative z and
+  left_* lower uses negative z — see GET /capabilities posing_guide.
+joints:
+  right_shoulder:
+    rotation_deg: { z: -55.0, y: -28.0 }
+  right_elbow:
+    rotation_deg: { z: -95.0 }
+  right_wrist:
+    rotation_deg: { z: 25.0 }
+  left_shoulder:
+    rotation_deg: { z: -72.0 }
+  left_elbow:
+    rotation_deg: { z: -12.0 }

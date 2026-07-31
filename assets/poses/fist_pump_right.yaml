@@ -1,0 +1,16 @@
+name: fist_pump_right
+description: >
+  Right arm thrust skyward in triumphant fist pump, classic shonen victory.
+joints:
+  right_shoulder:
+    rotation_deg: { x: 0.0, y: -5.0, z: -95.0 }
+  right_elbow:
+    rotation_deg: { x: 0.0, y: 0.0, z: -15.0 }
+  left_shoulder:
+    rotation_deg: { x: 0.0, y: 0.0, z: -55.0 }
+  left_elbow:
+    rotation_deg: { x: 0.0, y: 0.0, z: -20.0 }
+  chest:
+    rotation_deg: { x: 0.0, y: 5.0, z: 0.0 }
+  neck:
+    rotation_deg: { x: 0.0, y: 5.0, z: 0.0 }

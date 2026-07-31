@@ -1,0 +1,23 @@
+name: excited
+description: >
+  Sparkly excitement: brows high, eyes wide, mouth open, blush glowing, gaze lifted
+  upward (pupil joints translated up). Face-only pose.
+joints:
+  left_eyebrow:
+    rotation_deg: { x: 0.0, y: 0.0, z: -26.0 }
+  right_eyebrow:
+    rotation_deg: { x: 0.0, y: 0.0, z: 26.0 }
+  left_eyelid:
+    rotation_deg: { x: -6.0, y: 0.0, z: 0.0 }
+  right_eyelid:
+    rotation_deg: { x: -6.0, y: 0.0, z: 0.0 }
+  jaw:
+    rotation_deg: { x: 30.0, y: 0.0, z: 0.0 }
+  left_pupil:
+    translation: [0.0, 0.008, 0.012]
+  right_pupil:
+    translation: [0.0, 0.008, 0.012]
+  left_blush:
+    translation: [0.075, -0.025, 0.07]
+  right_blush:
+    translation: [-0.075, -0.025, 0.07]

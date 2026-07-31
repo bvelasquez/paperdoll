@@ -1,0 +1,18 @@
+name: power_up
+description: >
+  Shonen energy charge: crouch down gathering power, rise, then burst into a fierce
+  victory with an epic camera pullback. Face goes from hidden (looking down) to a
+  determined glare.
+loop: false
+keyframes:
+  - pose: crouch
+    duration_ms: 900
+    easing: ease_in
+    camera: { yaw_deg: 35.0, pitch_deg: 12.0, distance: 5.0, look_at: [0.0, 0.8, 0.0] }
+  - pose: t_pose
+    duration_ms: 200
+    easing: ease_out
+  - pose: angry_victory
+    duration_ms: 800
+    easing: ease_out
+    camera: { yaw_deg: 30.0, pitch_deg: 18.0, distance: 7.5, look_at: [0.0, 1.3, 0.0] }

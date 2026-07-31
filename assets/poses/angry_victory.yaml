@@ -1,0 +1,21 @@
+name: angry_victory
+description: >
+  Arms raised in victory with a fierce, determined glare — the triumphant shonen
+  protagonist after the final blow.
+joints:
+  left_shoulder:
+    rotation_deg: { x: 0.0, y: 0.0, z: 80.0 }
+  right_shoulder:
+    rotation_deg: { x: 0.0, y: 0.0, z: -80.0 }
+  neck:
+    rotation_deg: { x: -3.0, y: 0.0, z: 0.0 }
+  left_eyebrow:
+    rotation_deg: { x: 0.0, y: 0.0, z: 15.0 }
+  right_eyebrow:
+    rotation_deg: { x: 0.0, y: 0.0, z: -15.0 }
+  left_eyelid:
+    rotation_deg: { x: 15.0, y: 0.0, z: 0.0 }
+  right_eyelid:
+    rotation_deg: { x: 15.0, y: 0.0, z: 0.0 }
+  jaw:
+    rotation_deg: { x: 10.0, y: 0.0, z: 0.0 }

@@ -1,0 +1,74 @@
+name: kamehameha
+description: >
+  THE classic: arms crossed coolly, gather energy at the hip with a focused glare,
+  THRUST both hands forward with a battle cry, fierce victory finish.
+loop: false
+keyframes:
+  - pose: arms_crossed
+    duration_ms: 500
+    easing: ease_out
+    camera: { yaw_deg: 45.0, pitch_deg: 8.0, distance: 4.5, look_at: [0.0, 1.0, 0.0] }
+  - joints:
+      right_shoulder:
+        rotation_deg: { x: 0.0, y: 40.0, z: 28.0 }
+      right_elbow:
+        rotation_deg: { x: 0.0, y: 0.0, z: 115.0 }
+      right_wrist:
+        rotation_deg: { x: 0.0, y: 0.0, z: 20.0 }
+      left_shoulder:
+        rotation_deg: { x: 0.0, y: 40.0, z: 28.0 }
+      left_elbow:
+        rotation_deg: { x: 0.0, y: 0.0, z: 115.0 }
+      left_wrist:
+        rotation_deg: { x: 0.0, y: 0.0, z: -20.0 }
+      chest:
+        rotation_deg: { x: 0.0, y: 18.0, z: 0.0 }
+      spine:
+        rotation_deg: { x: 10.0, y: 0.0, z: 0.0 }
+      neck:
+        rotation_deg: { x: 0.0, y: 10.0, z: 0.0 }
+      left_eyebrow:
+        rotation_deg: { x: 0.0, y: 0.0, z: 18.0 }
+      right_eyebrow:
+        rotation_deg: { x: 0.0, y: 0.0, z: -18.0 }
+      left_eyelid:
+        rotation_deg: { x: 15.0, y: 0.0, z: 0.0 }
+      right_eyelid:
+        rotation_deg: { x: 15.0, y: 0.0, z: 0.0 }
+      jaw:
+        rotation_deg: { x: 5.0, y: 0.0, z: 0.0 }
+    duration_ms: 800
+    easing: ease_in
+    camera: { yaw_deg: 55.0, pitch_deg: 6.0, distance: 3.5, look_at: [0.3, 0.8, 0.0] }
+  - joints:
+      right_shoulder:
+        rotation_deg: { x: 0.0, y: -88.0, z: -5.0 }
+      right_elbow:
+        rotation_deg: { x: 0.0, y: 0.0, z: -5.0 }
+      left_shoulder:
+        rotation_deg: { x: 0.0, y: -88.0, z: 5.0 }
+      left_elbow:
+        rotation_deg: { x: 0.0, y: 0.0, z: 5.0 }
+      chest:
+        rotation_deg: { x: 0.0, y: -5.0, z: 0.0 }
+      spine:
+        rotation_deg: { x: -5.0, y: 0.0, z: 0.0 }
+      neck:
+        rotation_deg: { x: -5.0, y: 0.0, z: 0.0 }
+      left_eyebrow:
+        rotation_deg: { x: 0.0, y: 0.0, z: -22.0 }
+      right_eyebrow:
+        rotation_deg: { x: 0.0, y: 0.0, z: 22.0 }
+      left_eyelid:
+        rotation_deg: { x: -10.0, y: 0.0, z: 0.0 }
+      right_eyelid:
+        rotation_deg: { x: -10.0, y: 0.0, z: 0.0 }
+      jaw:
+        rotation_deg: { x: 38.0, y: 0.0, z: 0.0 }
+    duration_ms: 120
+    easing: step
+    camera: { yaw_deg: 5.0, pitch_deg: 5.0, distance: 1.8, look_at: [0.0, 1.5, 0.0] }
+  - pose: angry_victory
+    duration_ms: 900
+    easing: ease_out
+    camera: { yaw_deg: 30.0, pitch_deg: 16.0, distance: 6.5, look_at: [0.0, 1.2, 0.0] }

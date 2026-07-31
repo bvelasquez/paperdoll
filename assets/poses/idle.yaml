@@ -1,0 +1,14 @@
+name: idle
+description: >
+  Relaxed upright stance: torso erect (no pelvis lean — that tipped a hip and
+  drove a foot through the floor), right hand on hip, left arm down. Both feet
+  stay planted. IdleRevert target after inactivity.
+joints:
+  right_shoulder:
+    rotation_deg: { z: 42.0 }
+  right_elbow:
+    rotation_deg: { z: 95.0 }
+  left_shoulder:
+    rotation_deg: { z: -78.0 }
+  left_elbow:
+    rotation_deg: { z: -10.0 }

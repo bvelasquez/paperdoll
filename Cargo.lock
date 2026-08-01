@@ -167,6 +167,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "anyhow"
+version = "1.0.104"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
+
+[[package]]
 name = "approx"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1645,6 +1651,20 @@ dependencies = [
  "bevy_platform",
  "disqualified",
  "thread_local",
+]
+
+[[package]]
+name = "bevy_vrm1"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cb8b7507e895500090a326f35086566266624a1d70fa8a18744923541c267032"
+dependencies = [
+ "anyhow",
+ "bevy",
+ "bitflags 2.13.1",
+ "paste",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -3914,6 +3934,7 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "bevy",
+ "bevy_vrm1",
  "crossbeam-channel",
  "image",
  "paperdoll-rig",

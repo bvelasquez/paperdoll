@@ -1,0 +1,255 @@
+name: martial_kata
+description: >
+  Compact martial form for V2 skinning stress: ready crouch → chamber → right
+  cross punch with torso torque → recover → left roundhouse (hip/knee/ankle/toe
+  chain) → plant → high guard → idle. Heavy use of contralateral spine rotation
+  and full leg articulation so LBS deformation on thighs/knees is obvious.
+loop: false
+keyframes:
+  - joints:
+      pelvis:
+        rotation_deg: { x: -4.0, y: 0.0, z: 0.0 }
+      spine:
+        rotation_deg: { x: 14.0, y: 0.0, z: 0.0 }
+      chest:
+        rotation_deg: { x: 8.0, y: 0.0, z: 0.0 }
+      neck:
+        rotation_deg: { x: 6.0, y: 0.0, z: 0.0 }
+      left_hip:
+        rotation_deg: { x: 22.0, y: 0.0, z: -6.0 }
+      right_hip:
+        rotation_deg: { x: 22.0, y: 0.0, z: 6.0 }
+      left_knee:
+        rotation_deg: { x: 48.0, y: 0.0, z: 0.0 }
+      right_knee:
+        rotation_deg: { x: 48.0, y: 0.0, z: 0.0 }
+      left_ankle:
+        rotation_deg: { x: -12.0, y: 0.0, z: 0.0 }
+      right_ankle:
+        rotation_deg: { x: -12.0, y: 0.0, z: 0.0 }
+      left_shoulder:
+        rotation_deg: { x: 0.0, y: 35.0, z: -40.0 }
+      right_shoulder:
+        rotation_deg: { x: 0.0, y: 35.0, z: 40.0 }
+      left_elbow:
+        rotation_deg: { x: 0.0, y: 0.0, z: -85.0 }
+      right_elbow:
+        rotation_deg: { x: 0.0, y: 0.0, z: 85.0 }
+    duration_ms: 550
+    easing: ease_out
+    camera: { yaw_deg: 50.0, pitch_deg: 8.0, distance: 3.8, look_at: [0.0, 0.85, 0.0] }
+
+  # Chamber — load the right punch
+  - joints:
+      pelvis:
+        rotation_deg: { x: -2.0, y: 22.0, z: 0.0 }
+      spine:
+        rotation_deg: { x: 10.0, y: 18.0, z: 4.0 }
+      chest:
+        rotation_deg: { x: 6.0, y: 20.0, z: 6.0 }
+      upper_chest:
+        rotation_deg: { x: 2.0, y: 12.0, z: 4.0 }
+      neck:
+        rotation_deg: { x: 0.0, y: -18.0, z: 0.0 }
+      head:
+        rotation_deg: { x: 0.0, y: -10.0, z: 0.0 }
+      left_hip:
+        rotation_deg: { x: 18.0, y: 0.0, z: -8.0 }
+      right_hip:
+        rotation_deg: { x: 25.0, y: 0.0, z: 10.0 }
+      left_knee:
+        rotation_deg: { x: 40.0, y: 0.0, z: 0.0 }
+      right_knee:
+        rotation_deg: { x: 55.0, y: 0.0, z: 0.0 }
+      right_shoulder:
+        rotation_deg: { x: 0.0, y: 70.0, z: 25.0 }
+      right_elbow:
+        rotation_deg: { x: 0.0, y: 0.0, z: 125.0 }
+      right_wrist:
+        rotation_deg: { x: 0.0, y: 0.0, z: 20.0 }
+      left_shoulder:
+        rotation_deg: { x: 0.0, y: 45.0, z: -55.0 }
+      left_elbow:
+        rotation_deg: { x: 0.0, y: 0.0, z: -70.0 }
+      jaw:
+        rotation_deg: { x: 4.0, y: 0.0, z: 0.0 }
+    duration_ms: 450
+    easing: ease_in
+    camera: { yaw_deg: 65.0, pitch_deg: 6.0, distance: 3.2, look_at: [0.2, 1.05, 0.0] }
+
+  # Cross punch — snap torso the other way
+  - joints:
+      pelvis:
+        rotation_deg: { x: 2.0, y: -28.0, z: 0.0 }
+      spine:
+        rotation_deg: { x: 4.0, y: -30.0, z: -6.0 }
+      chest:
+        rotation_deg: { x: 2.0, y: -32.0, z: -8.0 }
+      upper_chest:
+        rotation_deg: { x: 0.0, y: -18.0, z: -4.0 }
+      neck:
+        rotation_deg: { x: -5.0, y: 25.0, z: 0.0 }
+      head:
+        rotation_deg: { x: 0.0, y: 15.0, z: 0.0 }
+      left_hip:
+        rotation_deg: { x: 20.0, y: 0.0, z: -10.0 }
+      right_hip:
+        rotation_deg: { x: 15.0, y: 0.0, z: 12.0 }
+      left_knee:
+        rotation_deg: { x: 42.0, y: 0.0, z: 0.0 }
+      right_knee:
+        rotation_deg: { x: 35.0, y: 0.0, z: 0.0 }
+      right_shoulder:
+        rotation_deg: { x: 0.0, y: -75.0, z: -8.0 }
+      right_elbow:
+        rotation_deg: { x: 0.0, y: 0.0, z: 8.0 }
+      right_wrist:
+        rotation_deg: { x: 0.0, y: 0.0, z: -15.0 }
+      left_shoulder:
+        rotation_deg: { x: 0.0, y: 55.0, z: -30.0 }
+      left_elbow:
+        rotation_deg: { x: 0.0, y: 0.0, z: -95.0 }
+      jaw:
+        rotation_deg: { x: 22.0, y: 0.0, z: 0.0 }
+    duration_ms: 90
+    easing: step
+    camera: { yaw_deg: 25.0, pitch_deg: 5.0, distance: 2.4, look_at: [0.35, 1.25, 0.0] }
+
+  - joints:
+      pelvis:
+        rotation_deg: { x: -2.0, y: -8.0, z: 0.0 }
+      spine:
+        rotation_deg: { x: 8.0, y: -8.0, z: 0.0 }
+      chest:
+        rotation_deg: { x: 4.0, y: -6.0, z: 0.0 }
+      neck:
+        rotation_deg: { x: 0.0, y: 5.0, z: 0.0 }
+      left_hip:
+        rotation_deg: { x: 18.0, y: 0.0, z: -6.0 }
+      right_hip:
+        rotation_deg: { x: 18.0, y: 0.0, z: 6.0 }
+      left_knee:
+        rotation_deg: { x: 40.0, y: 0.0, z: 0.0 }
+      right_knee:
+        rotation_deg: { x: 40.0, y: 0.0, z: 0.0 }
+      right_shoulder:
+        rotation_deg: { x: 0.0, y: 20.0, z: 30.0 }
+      right_elbow:
+        rotation_deg: { x: 0.0, y: 0.0, z: 55.0 }
+      left_shoulder:
+        rotation_deg: { x: 0.0, y: 30.0, z: -45.0 }
+      left_elbow:
+        rotation_deg: { x: 0.0, y: 0.0, z: -70.0 }
+      jaw:
+        rotation_deg: { x: 0.0, y: 0.0, z: 0.0 }
+    duration_ms: 400
+    easing: ease_out
+    camera: { yaw_deg: 40.0, pitch_deg: 8.0, distance: 3.5, look_at: [0.0, 0.95, 0.0] }
+
+  # Left roundhouse — lift, then whip
+  - joints:
+      pelvis:
+        rotation_deg: { x: 0.0, y: 30.0, z: -6.0 }
+      spine:
+        rotation_deg: { x: 6.0, y: 22.0, z: 8.0 }
+      chest:
+        rotation_deg: { x: 4.0, y: 16.0, z: 6.0 }
+      neck:
+        rotation_deg: { x: 0.0, y: -20.0, z: 0.0 }
+      right_hip:
+        rotation_deg: { x: 10.0, y: 0.0, z: 8.0 }
+      right_knee:
+        rotation_deg: { x: 20.0, y: 0.0, z: 0.0 }
+      left_hip:
+        rotation_deg: { x: 70.0, y: 0.0, z: -25.0 }
+      left_knee:
+        rotation_deg: { x: 85.0, y: 0.0, z: 0.0 }
+      left_ankle:
+        rotation_deg: { x: -20.0, y: 0.0, z: 15.0 }
+      left_toe:
+        rotation_deg: { x: 20.0, y: 0.0, z: 0.0 }
+      left_shoulder:
+        rotation_deg: { x: 0.0, y: 40.0, z: -60.0 }
+      right_shoulder:
+        rotation_deg: { x: 0.0, y: 25.0, z: 50.0 }
+      left_elbow:
+        rotation_deg: { x: 0.0, y: 0.0, z: -50.0 }
+      right_elbow:
+        rotation_deg: { x: 0.0, y: 0.0, z: 50.0 }
+    duration_ms: 500
+    easing: ease_in
+    camera: { yaw_deg: -20.0, pitch_deg: 10.0, distance: 3.6, look_at: [-0.2, 0.9, 0.0] }
+
+  - joints:
+      pelvis:
+        rotation_deg: { x: 4.0, y: -35.0, z: 8.0 }
+      spine:
+        rotation_deg: { x: 4.0, y: -28.0, z: -10.0 }
+      chest:
+        rotation_deg: { x: 2.0, y: -22.0, z: -8.0 }
+      neck:
+        rotation_deg: { x: -5.0, y: 30.0, z: 0.0 }
+      head:
+        rotation_deg: { x: 0.0, y: 18.0, z: 0.0 }
+      right_hip:
+        rotation_deg: { x: 8.0, y: 0.0, z: 10.0 }
+      right_knee:
+        rotation_deg: { x: 15.0, y: 0.0, z: 0.0 }
+      left_hip:
+        rotation_deg: { x: 35.0, y: 0.0, z: 45.0 }
+      left_knee:
+        rotation_deg: { x: 20.0, y: 0.0, z: 0.0 }
+      left_ankle:
+        rotation_deg: { x: 10.0, y: 0.0, z: 20.0 }
+      left_toe:
+        rotation_deg: { x: -5.0, y: 0.0, z: 0.0 }
+      left_shoulder:
+        rotation_deg: { x: 0.0, y: 20.0, z: -35.0 }
+      right_shoulder:
+        rotation_deg: { x: 0.0, y: 40.0, z: 55.0 }
+      jaw:
+        rotation_deg: { x: 18.0, y: 0.0, z: 0.0 }
+    duration_ms: 110
+    easing: step
+    camera: { yaw_deg: -45.0, pitch_deg: 8.0, distance: 3.0, look_at: [0.3, 1.0, 0.0] }
+
+  # High guard recover
+  - joints:
+      pelvis:
+        rotation_deg: { x: -2.0, y: 0.0, z: 0.0 }
+      spine:
+        rotation_deg: { x: 10.0, y: 0.0, z: 0.0 }
+      chest:
+        rotation_deg: { x: 6.0, y: 0.0, z: 0.0 }
+      neck:
+        rotation_deg: { x: -4.0, y: 0.0, z: 0.0 }
+      left_hip:
+        rotation_deg: { x: 20.0, y: 0.0, z: -8.0 }
+      right_hip:
+        rotation_deg: { x: 20.0, y: 0.0, z: 8.0 }
+      left_knee:
+        rotation_deg: { x: 45.0, y: 0.0, z: 0.0 }
+      right_knee:
+        rotation_deg: { x: 45.0, y: 0.0, z: 0.0 }
+      left_shoulder:
+        rotation_deg: { x: 0.0, y: 55.0, z: -50.0 }
+      right_shoulder:
+        rotation_deg: { x: 0.0, y: 55.0, z: 50.0 }
+      left_elbow:
+        rotation_deg: { x: 0.0, y: 0.0, z: -100.0 }
+      right_elbow:
+        rotation_deg: { x: 0.0, y: 0.0, z: 100.0 }
+      left_wrist:
+        rotation_deg: { x: 0.0, y: 0.0, z: -25.0 }
+      right_wrist:
+        rotation_deg: { x: 0.0, y: 0.0, z: 25.0 }
+      jaw:
+        rotation_deg: { x: 0.0, y: 0.0, z: 0.0 }
+    duration_ms: 550
+    easing: ease_out
+    camera: { yaw_deg: 30.0, pitch_deg: 6.0, distance: 3.4, look_at: [0.0, 1.15, 0.0] }
+
+  - pose: idle
+    duration_ms: 650
+    easing: ease_in_out
+    camera: { yaw_deg: 35.5, pitch_deg: 9.2, distance: 4.36, look_at: [0.0, 0.9, 0.0] }

@@ -25,15 +25,14 @@ agent (human or AI) can pose the character on demand.
 
 Implemented so far (see `paperdoll-rig`'s ~20 unit/integration tests):
 
-- [x] Humanoid joint hierarchy (`Skeleton::humanoid_default`, 24 joints,
-      human-proportioned — three-segment spine, clavicle-driven shoulder
-      girdle, hands and toes as their own joints)
+- [x] Humanoid joint hierarchy (`Skeleton::humanoid_default`, **65 joints** —
+      body + face cosmetics + full VRM finger set for v2)
 - [x] YAML pose/animation schema + loader with fail-fast validation
 - [x] Quaternion slerp + easing interpolation engine, with smooth
       mid-transition interrupts (no snapping)
 - [x] Bevy app rendering the rig as a procedural doll (capsule bones sized
       per joint, not derived from bone length, so torso/limb thickness
-      reads as anatomically distinct)
+      reads as anatomically distinct) — **variant v1**
 - [x] Loading `assets/poses/*.yaml` and `assets/animations/*.yaml` at
       startup; the doll opens in the default `idle` pose
 - [x] Live interpolation driven by the Bevy `Update` schedule, with
@@ -58,6 +57,10 @@ Implemented so far (see `paperdoll-rig`'s ~20 unit/integration tests):
       - `GET /screenshot` — captures the primary window (Bevy's built-in
         screenshot API) and returns it as a PNG, so a caller can verify a
         pose visually without needing eyes on the actual window
+      - `GET`/`POST /variant` — A/B between **v1** (procedural) and **v2**
+        (VRM skinned); also selectable at launch
+      - `GET`/`POST /expressions` — VRM face morph presets (v2 only; e.g.
+        `happy`, `blink`, `aa`/`ih`/`ou`/`ee`/`oh`, `surprised`)
 - [x] `idle` default pose (`assets/poses/idle.yaml`) + `IdleRevert`: the rig
       automatically transitions back to it after `TIMEOUT_SECS` (10s) of no
       new `POST /pose`/`POST /animation` commands, so it doesn't stay frozen
@@ -65,21 +68,50 @@ Implemented so far (see `paperdoll-rig`'s ~20 unit/integration tests):
 - [x] `GET /state` — live joint + camera + playback-mode snapshot for agents
 - [x] Camera choreography (orbit yaw/pitch/distance/look_at) on poses and
       animation keyframes, including camera-only holds
+- [x] **v2** VRM 1.0 skinned humanoid (AliciaSolid seed under
+      `assets/characters/default.vrm`) driven by the same pose/animation API,
+      including **finger joints** and **expressions**
 
-Not yet implemented (see the milestone list below):
+## Variants (v1 / v2 A/B)
 
-- [ ] Real mesh skinning (currently a procedural primitive doll, not a
-      skinned mesh)
+| | **v2** (default) | **v1** |
+|---|---|---|
+| Visual | VRM 1.0 skinned mesh | Procedural capsules + face cosmetics |
+| Joints | Same 65; body + fingers drive mesh | 65 names (fingers present but unused) |
+| Face | `GET`/`POST /expressions` morph presets | Procedural cosmetics (pupils, lids, …) |
+| Launch | `paperdoll` or `--variant v2` | `paperdoll --variant v1` |
+| Env | `PAPERDOLL_VARIANT=v2` (or unset) | `PAPERDOLL_VARIANT=v1` |
+| Runtime | `POST /variant` `{"variant":"v2"}` | `POST /variant` `{"variant":"v1"}` |
+
+Optional: `PAPERDOLL_V2_CHARACTER=characters/default.vrm` (Bevy path under `assets/`).
+See `assets/characters/ATTRIBUTION.md` for the seed model license.
+
+### Expressions (v2)
+
+```sh
+curl -s http://127.0.0.1:7878/expressions
+curl -s -X POST http://127.0.0.1:7878/expressions \
+  -H 'Content-Type: application/json' \
+  -d '{"reset":true,"weights":{"happy":1.0,"blink":0.3}}'
+```
+
+Finger poses use the same `/pose` / `/animation` joints (`left_index_proximal`,
+`right_thumb_distal`, …). Try `finger_emote` when running v2.
+
 
 ## Running
 
 ```sh
 cargo test --workspace   # rig logic + YAML asset validation
-cargo run -p paperdoll-app   # opens a window showing the doll in the idle pose
+cargo run -p paperdoll-app   # v2 VRM (default)
+cargo run -p paperdoll-app -- --variant v1   # procedural capsules
+cargo run -p paperdoll-app -- --variant v2   # explicit v2
+cargo run -p paperdoll-app -- --variant v2   # VRM skinned doll
 
 # Or build + install to ~/.local (binary `paperdoll`, assets under share/):
 make install
 paperdoll
+paperdoll --variant v2
 ```
 
 With the app running:
@@ -160,4 +192,8 @@ in the abstract) — trust the guide over intuition when authoring a new pose.
 | M6.7 | `posing_guide` + `example_poses` pose board in `GET /capabilities`, so the API is self-teaching — **done** |
 | M6.8 | `GET /state` live joint/camera snapshot — **done** |
 | M7 | Camera choreography (orbit yaw/pitch/distance/look_at on poses + keyframes) — **done** |
-| M8 | Real glTF-rigged mesh + linear-blend skinning (stretch) |
+| M8a | v1/v2 A/B: `--variant` / `PAPERDOLL_VARIANT`, `GET`/`POST /variant`, **v2 default** — **done** |
+| M8b | v2 VRM 1.0 skinned mesh + humanoid→paperdoll joint map — **done** |
+| M8c | v2 full-mesh character swap API (stretch) |
+| M9 | VRM expressions (`GET`/`POST /expressions`) + finger joints in skeleton — **done** |
+| M10+ | spring bones / MToon / LookAt (stretch, v2-only) |

@@ -161,13 +161,67 @@ impl Skeleton {
                 0.09,
                 0.026,
             );
-            b.add_joint(
+            let hand = b.add_joint(
                 &format!("{side}_hand"),
                 Some(wrist),
                 Vec3::new(sign * 0.10, 0.0, 0.0),
                 0.11,
                 0.023,
             );
+
+            // Fingers (VRM humanoid): driven on v2 skinned meshes; on v1 they exist in
+            // the hierarchy for API parity but are visually suppressed (tiny offsets).
+            // Thumb: metacarpal → proximal → distal. Other digits: proximal →
+            // intermediate → distal. Names match VRM camelCase mapped to snake_case.
+            let thumb_meta = b.add_joint(
+                &format!("{side}_thumb_metacarpal"),
+                Some(hand),
+                Vec3::new(sign * 0.02, -0.015, 0.025),
+                0.03,
+                0.008,
+            );
+            let thumb_prox = b.add_joint(
+                &format!("{side}_thumb_proximal"),
+                Some(thumb_meta),
+                Vec3::new(sign * 0.03, -0.01, 0.02),
+                0.025,
+                0.007,
+            );
+            b.add_joint(
+                &format!("{side}_thumb_distal"),
+                Some(thumb_prox),
+                Vec3::new(sign * 0.022, 0.0, 0.012),
+                0.02,
+                0.006,
+            );
+            for (digit, z) in [
+                ("index", 0.018_f32),
+                ("middle", 0.005),
+                ("ring", -0.008),
+                ("little", -0.02),
+            ] {
+                let prox = b.add_joint(
+                    &format!("{side}_{digit}_proximal"),
+                    Some(hand),
+                    Vec3::new(sign * 0.04, 0.01, z),
+                    0.032,
+                    0.007,
+                );
+                let mid = b.add_joint(
+                    &format!("{side}_{digit}_intermediate"),
+                    Some(prox),
+                    Vec3::new(sign * 0.028, 0.0, 0.0),
+                    0.024,
+                    0.006,
+                );
+                b.add_joint(
+                    &format!("{side}_{digit}_distal"),
+                    Some(mid),
+                    Vec3::new(sign * 0.02, 0.0, 0.0),
+                    0.018,
+                    0.005,
+                );
+            }
 
             // Legs: hip (thigh) -> knee (shin) -> ankle -> toe. `paperdoll-app` adds a
             // ground-height offset to the pelvis (hip_drop + thigh + shin + 0.06), so
@@ -276,7 +330,8 @@ mod tests {
     #[test]
     fn humanoid_default_has_expected_joint_count_and_names() {
         let skeleton = Skeleton::humanoid_default();
-        assert_eq!(skeleton.len(), 35);
+        // 35 core + 30 finger bones (5 digits × 3 bones × 2 hands)
+        assert_eq!(skeleton.len(), 65);
         for name in [
             "pelvis",
             "spine",
@@ -289,11 +344,16 @@ mod tests {
             "left_elbow",
             "left_wrist",
             "left_hand",
+            "left_thumb_metacarpal",
+            "left_index_proximal",
+            "left_little_distal",
             "right_clavicle",
             "right_shoulder",
             "right_elbow",
             "right_wrist",
             "right_hand",
+            "right_thumb_distal",
+            "right_middle_intermediate",
             "left_hip",
             "left_knee",
             "left_ankle",

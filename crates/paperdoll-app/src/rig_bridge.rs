@@ -3,7 +3,11 @@ use crate::doll_mesh::{
     eyebrow_mesh, hair_cap_mesh, hair_tail_mesh, highlight_mesh, iris_mesh, joint_marker_mesh,
     lash_mesh, lip_mesh, mouth_interior_mesh, pupil_mesh, sclera_mesh,
 };
+use crate::v2_vrm;
+use crate::variant::{DollVariant, SharedVariantState};
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
+use bevy_vrm1::prelude::RestTransform;
 use paperdoll_rig::{
     duration_ms_for_speed, Animation, JointId, PlaybackState, PlaybackTarget, Pose, Skeleton,
 };
@@ -47,12 +51,22 @@ fn is_face_joint(name: &str) -> bool {
     )
 }
 
+/// Finger bones exist for v2/API parity; on the procedural doll they're too small to
+/// read, so we suppress bone segments and markers (same idea as face cosmetics).
+fn is_finger_joint(name: &str) -> bool {
+    name.contains("_thumb_")
+        || name.contains("_index_")
+        || name.contains("_middle_")
+        || name.contains("_ring_")
+        || name.contains("_little_")
+}
+
 /// Joints whose INCOMING bone segment (parent → joint) is suppressed: face
-/// joints (tiny lines on the face) and hips — the short, fat pelvis→hip stubs
+/// joints (tiny lines on the face), fingers, and hips — the short, fat pelvis→hip stubs
 /// cross at center-front and poke through the hip-block cylinder as an ugly X.
 /// The thigh (hip→knee) segment belongs to the knee, so legs are unaffected.
 fn skip_bone(name: &str) -> bool {
-    is_face_joint(name) || matches!(name, "left_hip" | "right_hip")
+    is_face_joint(name) || is_finger_joint(name) || matches!(name, "left_hip" | "right_hip")
 }
 
 /// Joints whose default marker sphere is suppressed even though they keep their
@@ -60,7 +74,7 @@ fn skip_bone(name: &str) -> bool {
 /// intersection curves cross mid-front into an ugly "X" crease — the tapered
 /// thigh segment alone meets the pelvis cleanly.
 fn skip_marker(name: &str) -> bool {
-    is_face_joint(name) || matches!(name, "left_hip" | "right_hip")
+    is_face_joint(name) || is_finger_joint(name) || matches!(name, "left_hip" | "right_hip")
 }
 
 /// Uniform soft-scale for specific joint markers: full-size markers read as
@@ -96,10 +110,29 @@ fn bone_radii(child_name: &str, parent_radius: f32, joint_radius: f32) -> (f32, 
 }
 
 /// Maps rig `JointId`s to the Bevy entity carrying that joint's `Transform`. Other
-/// systems (the future animator, in M4) look entities up here to apply interpolated
-/// rotations by joint name/id without re-walking the hierarchy every frame.
+/// systems look entities up here to apply interpolated rotations by joint name/id
+/// without re-walking the hierarchy every frame.
 #[derive(Resource, Default)]
 pub struct RigEntities(pub HashMap<JointId, Entity>);
+
+/// Root of the active visual tree (v1 pelvis hierarchy or v2 VRM). Despawned on
+/// variant switch.
+#[derive(Component)]
+pub struct DollVisualRoot;
+
+/// How [`advance_playback`] writes paperdoll quaternions onto bound entities.
+#[derive(Resource, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PoseApplyMode {
+    /// v1: paperdoll rest is identity — write absolute local rotations.
+    #[default]
+    Absolute,
+    /// v2: VRM bones keep authored rest — write `rest * paperdoll`.
+    RestRelative,
+}
+
+/// Currently displayed visual variant.
+#[derive(Resource, Clone, Copy, PartialEq, Eq)]
+pub struct ActiveVariant(pub DollVariant);
 
 /// The rig's rest-pose skeleton, kept as a resource so systems can resolve pose YAML
 /// (by joint name) without rebuilding it every frame.
@@ -137,6 +170,14 @@ pub enum RigCommand {
     },
     Animation {
         name: String,
+    },
+    /// Tear down the current visual and spawn the other (v1 procedural / v2 VRM).
+    SetVariant {
+        variant: DollVariant,
+    },
+    /// Set VRM expression blend weights (v2 only). Keys are preset names.
+    SetExpressions {
+        weights: HashMap<String, f32>,
     },
 }
 
@@ -211,26 +252,10 @@ impl Default for IdleRevert {
     }
 }
 
-/// Spawns one Bevy entity per joint, using Bevy's native `Transform` + parent/child
-/// hierarchy so Bevy's own transform-propagation system computes world transforms —
-/// this is the mapping described in the plan's "Skeleton / Rig Data Model" section.
-/// Each joint also gets a small marker sphere, and each non-root joint gets a capsule
-/// "bone" spanning from its parent, so the hierarchy is visible without a real skin.
-///
-/// Opens already in [`STARTUP_POSE`] (baked into each joint's spawn transform and held
-/// in [`PlaybackState::Idle`]) so the T-pose rest never flashes on screen. Runtime
-/// pose/animation changes still come from the HTTP API via [`apply_rig_commands`].
-///
-/// `PoseLibrary` is the same instance `main()` inserted before `App::run` — shared with
-/// the HTTP API's registration endpoints, so there's exactly one live copy.
-pub fn spawn_rig(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    poses: Res<PoseLibrary>,
-) {
+/// Inserts shared rig resources (skeleton, playback, idle revert). Call once at
+/// startup before spawning either visual variant.
+pub fn setup_rig_core(mut commands: Commands, poses: Res<PoseLibrary>) {
     let skeleton = Skeleton::humanoid_default();
-
     let startup_pose = {
         let poses_guard = poses.0.read().unwrap();
         poses_guard
@@ -238,11 +263,96 @@ pub fn spawn_rig(
             .cloned()
             .unwrap_or_else(|| panic!("startup pose '{STARTUP_POSE}' not found in '{POSES_DIR}'"))
     };
-    let startup_resolved = startup_pose.resolve(&skeleton).unwrap_or_else(|e| {
+    let startup_resolved = startup_pose
+        .resolve(&skeleton)
+        .unwrap_or_else(|e| panic!("startup pose '{STARTUP_POSE}' failed to resolve: {e}"));
+    let playback = PlaybackState::Idle {
+        held: startup_resolved,
+    };
+    let mut idle_revert = IdleRevert::default();
+    idle_revert.reverted = true;
+
+    commands.insert_resource(RigEntities::default());
+    commands.insert_resource(RigPlayback(playback));
+    commands.insert_resource(TransitionSpeed::default());
+    commands.insert_resource(RigSkeleton(skeleton));
+    commands.insert_resource(idle_revert);
+    commands.insert_resource(PoseApplyMode::Absolute);
+}
+
+/// Startup: spawn whichever visual [`ActiveVariant`] selected at launch.
+pub fn spawn_initial_visual(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut rig_entities: ResMut<RigEntities>,
+    mut apply_mode: ResMut<PoseApplyMode>,
+    skeleton: Res<RigSkeleton>,
+    poses: Res<PoseLibrary>,
+    active: Res<ActiveVariant>,
+    shared_variant: Res<SharedVariantState>,
+    asset_server: Res<AssetServer>,
+) {
+    spawn_visual_for_variant(
+        active.0,
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        &mut rig_entities,
+        &mut apply_mode,
+        &skeleton,
+        &poses,
+        &asset_server,
+        &shared_variant.v2_character(),
+    );
+}
+
+pub(crate) fn spawn_visual_for_variant(
+    variant: DollVariant,
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    rig_entities: &mut RigEntities,
+    apply_mode: &mut PoseApplyMode,
+    skeleton: &RigSkeleton,
+    poses: &PoseLibrary,
+    asset_server: &AssetServer,
+    v2_character: &str,
+) {
+    match variant {
+        DollVariant::V1 => {
+            spawn_v1_visual(commands, meshes, materials, rig_entities, apply_mode, skeleton, poses)
+        }
+        DollVariant::V2 => {
+            v2_vrm::spawn_v2_visual(commands, asset_server, v2_character, apply_mode, rig_entities)
+        }
+    }
+}
+
+/// Spawns the v1 procedural doll. Pelvis is tagged [`DollVisualRoot`] for variant swaps.
+pub fn spawn_v1_visual(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    rig_entities: &mut RigEntities,
+    apply_mode: &mut PoseApplyMode,
+    skeleton_res: &RigSkeleton,
+    poses: &PoseLibrary,
+) {
+    *apply_mode = PoseApplyMode::Absolute;
+    rig_entities.0.clear();
+
+    let skeleton = &skeleton_res.0;
+    let startup_pose = {
+        let poses_guard = poses.0.read().unwrap();
+        poses_guard
+            .get(STARTUP_POSE)
+            .cloned()
+            .unwrap_or_else(|| panic!("startup pose '{STARTUP_POSE}' not found in '{POSES_DIR}'"))
+    };
+    let startup_resolved = startup_pose.resolve(skeleton).unwrap_or_else(|e| {
         panic!("startup pose '{STARTUP_POSE}' failed to resolve: {e}")
     });
-
-    let mut rig_entities = RigEntities::default();
 
     let bone_material = materials.add(StandardMaterial {
         base_color: Color::srgb(0.85, 0.72, 0.55),
@@ -272,13 +382,15 @@ pub fn spawn_rig(
             .copied()
             .unwrap_or(joint.local_rotation);
 
-        let entity = commands
-            .spawn((
-                Transform::from_translation(translation).with_rotation(rotation),
-                Visibility::default(),
-                Name::new(joint.name.clone()),
-            ))
-            .id();
+        let mut entity_cmds = commands.spawn((
+            Transform::from_translation(translation).with_rotation(rotation),
+            Visibility::default(),
+            Name::new(joint.name.clone()),
+        ));
+        if joint.parent.is_none() {
+            entity_cmds.insert(DollVisualRoot);
+        }
+        let entity = entity_cmds.id();
 
         if let Some(parent_id) = joint.parent {
             let parent_entity = rig_entities.0[&parent_id];
@@ -661,71 +773,119 @@ pub fn spawn_rig(
         .id();
     commands.entity(head_entity).add_child(ahoge);
 
-    // Hold still at the startup pose — already baked into entity transforms above.
-    // Mark IdleRevert as already-reverted so it doesn't re-fire a no-op transition
-    // after `timeout_secs` of sitting at the default it opened in.
-    let playback = PlaybackState::Idle {
-        held: startup_resolved,
-    };
-    let mut idle_revert = IdleRevert::default();
-    idle_revert.reverted = true;
-
-    commands.insert_resource(rig_entities);
-    commands.insert_resource(RigPlayback(playback));
-    commands.insert_resource(TransitionSpeed::default());
-    commands.insert_resource(RigSkeleton(skeleton));
-    commands.insert_resource(idle_revert);
+    let _ = startup_resolved; // baked into joint transforms above
 }
 
-/// Drains commands sent by the HTTP API (`POST /pose`, `POST /animation`, see
-/// `http_api.rs`) and starts the corresponding transition. Runs before
-/// `advance_playback` each frame (see `main.rs`) so a command takes effect the same
-/// frame it arrives instead of lagging a frame behind. Also resets [`IdleRevert`]'s
-/// activity clock on every command actually applied, so `auto_revert_to_idle_pose`
-/// doesn't fire while the rig is still being actively directed.
+/// Params needed to tear down / respawn visuals on `SetVariant`.
+#[derive(SystemParam)]
+pub struct VariantSpawnParams<'w, 's> {
+    commands: Commands<'w, 's>,
+    meshes: ResMut<'w, Assets<Mesh>>,
+    materials: ResMut<'w, Assets<StandardMaterial>>,
+    rig_entities: ResMut<'w, RigEntities>,
+    apply_mode: ResMut<'w, PoseApplyMode>,
+    active: ResMut<'w, ActiveVariant>,
+    shared_variant: Res<'w, SharedVariantState>,
+    shared_expressions: Res<'w, crate::v2_expressions::SharedExpressionState>,
+    expression_bindings: ResMut<'w, crate::v2_expressions::V2ExpressionBindings>,
+    asset_server: Res<'w, AssetServer>,
+    skeleton: Res<'w, RigSkeleton>,
+    poses: Res<'w, PoseLibrary>,
+    visual_roots: Query<'w, 's, Entity, With<DollVisualRoot>>,
+}
+
+/// Drains commands sent by the HTTP API (`POST /pose`, `POST /animation`,
+/// `POST /variant`, see `http_api.rs`) and starts the corresponding transition or
+/// visual swap. Runs before `advance_playback` each frame (see `main.rs`) so a
+/// command takes effect the same frame it arrives instead of lagging a frame behind.
+/// Also resets [`IdleRevert`]'s activity clock on every pose/animation command
+/// actually applied, so `auto_revert_to_idle_pose` doesn't fire while the rig is
+/// still being actively directed.
 pub fn apply_rig_commands(
     time: Res<Time>,
     receiver: Res<RigCommandReceiver>,
-    skeleton: Res<RigSkeleton>,
-    poses: Res<PoseLibrary>,
     animations: Res<AnimationLibrary>,
     speed: Res<TransitionSpeed>,
     mut playback: ResMut<RigPlayback>,
     mut idle: ResMut<IdleRevert>,
+    mut variant_spawn: VariantSpawnParams,
 ) {
     while let Ok(command) = receiver.0.try_recv() {
+        match command {
+            RigCommand::SetVariant { variant } => {
+                if variant_spawn.active.0 == variant {
+                    continue;
+                }
+                for entity in variant_spawn.visual_roots.iter() {
+                    variant_spawn.commands.entity(entity).despawn();
+                }
+                variant_spawn.rig_entities.0.clear();
+                crate::v2_expressions::clear_expression_state(
+                    &variant_spawn.shared_expressions,
+                    &mut variant_spawn.expression_bindings,
+                );
+                variant_spawn.active.0 = variant;
+                variant_spawn.shared_variant.set_active(variant);
+                let v2_character = variant_spawn.shared_variant.v2_character();
+                spawn_visual_for_variant(
+                    variant,
+                    &mut variant_spawn.commands,
+                    &mut variant_spawn.meshes,
+                    &mut variant_spawn.materials,
+                    &mut variant_spawn.rig_entities,
+                    &mut variant_spawn.apply_mode,
+                    &variant_spawn.skeleton,
+                    &variant_spawn.poses,
+                    &variant_spawn.asset_server,
+                    &v2_character,
+                );
+                info!("switched visual variant to {variant}");
+                continue;
+            }
+            RigCommand::SetExpressions { weights } => {
+                if let Err(e) = variant_spawn.shared_expressions.apply_weights(&weights) {
+                    warn!("ignoring /expressions: {e}");
+                }
+                continue;
+            }
+            _ => {}
+        }
+
         // Snapshotting per-command (rather than once before the loop) means a burst
         // of commands in one frame each blend smoothly from wherever the previous
         // one in the burst left off, not all from the same stale starting point.
-        let from = playback.0.current_snapshot(&skeleton.0);
+        let from = playback.0.current_snapshot(&variant_spawn.skeleton.0);
         match command {
+            RigCommand::SetVariant { .. } | RigCommand::SetExpressions { .. } => unreachable!(),
             RigCommand::Pose {
                 name,
                 speed_deg_per_sec,
             } => {
                 let pose = {
-                    let poses_guard = poses.0.read().unwrap();
+                    let poses_guard = variant_spawn.poses.0.read().unwrap();
                     let Some(pose) = poses_guard.get(&name) else {
                         warn!("ignoring /pose command for unknown pose '{name}'");
                         continue;
                     };
                     pose.clone()
                 };
-                let Ok(target_resolved) = pose.resolve(&skeleton.0) else {
+                let Ok(target_resolved) = pose.resolve(&variant_spawn.skeleton.0) else {
                     warn!("ignoring /pose command: pose '{name}' failed to resolve");
                     continue;
                 };
                 let duration_ms = duration_ms_for_speed(
-                    &skeleton.0,
+                    &variant_spawn.skeleton.0,
                     &from,
                     &target_resolved,
                     speed_deg_per_sec.unwrap_or(speed.deg_per_sec),
                     speed.min_ms,
                     speed.max_ms,
                 );
-                playback
-                    .0
-                    .interrupt(&skeleton.0, PlaybackTarget::Pose(pose), duration_ms);
+                playback.0.interrupt(
+                    &variant_spawn.skeleton.0,
+                    PlaybackTarget::Pose(pose),
+                    duration_ms,
+                );
                 idle.last_activity_secs = time.elapsed_secs();
                 idle.reverted = false;
                 idle.expect_return_after_animation = false;
@@ -748,12 +908,15 @@ pub fn apply_rig_commands(
                     warn!("ignoring /animation command: '{name}' has no keyframes");
                     continue;
                 };
-                let Ok(target_resolved) = first_keyframe.pose.resolve(&skeleton.0) else {
+                let Ok(target_resolved) = first_keyframe
+                    .pose
+                    .resolve(&variant_spawn.skeleton.0)
+                else {
                     warn!("ignoring /animation command: '{name}' first keyframe failed to resolve");
                     continue;
                 };
                 let duration_ms = duration_ms_for_speed(
-                    &skeleton.0,
+                    &variant_spawn.skeleton.0,
                     &from,
                     &target_resolved,
                     speed.deg_per_sec,
@@ -761,7 +924,7 @@ pub fn apply_rig_commands(
                     speed.max_ms,
                 );
                 playback.0.interrupt(
-                    &skeleton.0,
+                    &variant_spawn.skeleton.0,
                     PlaybackTarget::Animation(anim),
                     duration_ms,
                 );
@@ -850,25 +1013,44 @@ pub fn advance_playback(
     rig_entities: Res<RigEntities>,
     camera_entity: Res<ChoreographyCameraEntity>,
     live_state: Res<crate::live_state::LiveState>,
+    apply_mode: Res<PoseApplyMode>,
     mut playback: ResMut<RigPlayback>,
     mut idle: ResMut<IdleRevert>,
     mut transforms: Query<&mut Transform>,
+    rest_transforms: Query<&RestTransform>,
 ) {
     let dt_ms = (time.delta_secs() * 1000.0).round() as u32;
+    // Always take a snapshot — including Idle. v1 spawns already in STARTUP_POSE, but
+    // v2 binds asynchronously onto VRM rest; without writing the held idle pose after
+    // bind, the mesh stays in T-pose until the first POST /pose|/animation.
     let snapshot = if dt_ms == 0 {
         playback.0.current_snapshot(&skeleton.0)
     } else if let Some(resolved) = playback.0.advance(&skeleton.0, dt_ms) {
-        for (joint_id, rotation) in &resolved.joint_rotations {
-            if let Some(&entity) = rig_entities.0.get(joint_id) {
-                if let Ok(mut transform) = transforms.get_mut(entity) {
-                    transform.rotation = *rotation;
-                }
+        resolved
+    } else {
+        playback.0.current_snapshot(&skeleton.0)
+    };
+
+    for (joint_id, rotation) in &snapshot.joint_rotations {
+        if let Some(&entity) = rig_entities.0.get(joint_id) {
+            if let Ok(mut transform) = transforms.get_mut(entity) {
+                transform.rotation = match *apply_mode {
+                    PoseApplyMode::Absolute => *rotation,
+                    PoseApplyMode::RestRelative => {
+                        if let Ok(rest) = rest_transforms.get(entity) {
+                            rest.0.rotation * *rotation
+                        } else {
+                            *rotation
+                        }
+                    }
+                };
             }
         }
-        // Joint translations (gaze pupils, pop-out blush, etc.) — the root joint's
-        // blended value is in joint-local space, so re-apply the ground offset the
-        // spawn path added, same as `spawn_rig`'s root branch.
-        for (joint_id, translation) in &resolved.joint_translations {
+    }
+    // Joint translations (gaze pupils, pop-out blush, etc.) — v1 only. VRM bind
+    // pose owns bone translations; applying paperdoll offsets would yank the mesh.
+    if *apply_mode == PoseApplyMode::Absolute {
+        for (joint_id, translation) in &snapshot.joint_translations {
             if let Some(&entity) = rig_entities.0.get(joint_id) {
                 if let Ok(mut transform) = transforms.get_mut(entity) {
                     let is_root = skeleton.0.joint(*joint_id).parent.is_none();
@@ -880,16 +1062,13 @@ pub fn advance_playback(
                 }
             }
         }
-        if let Ok(mut cam_tf) = transforms.get_mut(camera_entity.0) {
-            let eye = resolved.camera.eye();
-            let look_at = resolved.camera.look_at_vec();
-            *cam_tf = Transform::from_translation(Vec3::new(eye.x, eye.y, eye.z))
-                .looking_at(Vec3::new(look_at.x, look_at.y, look_at.z), Vec3::Y);
-        }
-        resolved
-    } else {
-        playback.0.current_snapshot(&skeleton.0)
-    };
+    }
+    if let Ok(mut cam_tf) = transforms.get_mut(camera_entity.0) {
+        let eye = snapshot.camera.eye();
+        let look_at = snapshot.camera.look_at_vec();
+        *cam_tf = Transform::from_translation(Vec3::new(eye.x, eye.y, eye.z))
+            .looking_at(Vec3::new(look_at.x, look_at.y, look_at.z), Vec3::Y);
+    }
     if idle.expect_return_after_animation && playback.0.is_idle() {
         idle.pending_after_animation = true;
         idle.expect_return_after_animation = false;

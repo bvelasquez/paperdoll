@@ -17,6 +17,8 @@ use crate::rig_bridge::{
     AnimationLibrary, PoseLibrary, RigCommand, RigCommandReceiver, ANIMATIONS_DIR, POSES_DIR,
 };
 use crate::screenshot_bridge::{ScreenshotRequest, ScreenshotRequestReceiver};
+use crate::v2_expressions::SharedExpressionState;
+use crate::variant::{DollVariant, SharedVariantState};
 use axum::{
     body::Body,
     extract::State,
@@ -46,6 +48,8 @@ struct ApiState {
     poses: Arc<RwLock<HashMap<String, Pose>>>,
     animations: Arc<RwLock<HashMap<String, Animation>>>,
     live_state: LiveState,
+    variant: SharedVariantState,
+    expressions: SharedExpressionState,
     commands: crossbeam_channel::Sender<RigCommand>,
     screenshots: crossbeam_channel::Sender<ScreenshotRequest>,
 }
@@ -60,6 +64,99 @@ struct PoseCommandRequest {
 #[derive(serde::Deserialize)]
 struct AnimationCommandRequest {
     name: String,
+}
+
+#[derive(serde::Deserialize)]
+struct VariantCommandRequest {
+    variant: DollVariant,
+}
+
+async fn get_variant(State(state): State<ApiState>) -> Json<serde_json::Value> {
+    Json(serde_json::to_value(state.variant.snapshot()).unwrap())
+}
+
+async fn post_variant(
+    State(state): State<ApiState>,
+    Json(req): Json<VariantCommandRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    if req.variant == DollVariant::V2 && !state.variant.v2_ready() {
+        let snap = state.variant.snapshot();
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            error_body(format!(
+                "variant v2 requires VRM at assets/{} — file not found",
+                snap.v2_character
+            )),
+        );
+    }
+    let _ = state.commands.send(RigCommand::SetVariant {
+        variant: req.variant,
+    });
+    (
+        StatusCode::ACCEPTED,
+        Json(serde_json::json!({ "variant": req.variant })),
+    )
+}
+
+async fn get_expressions(State(state): State<ApiState>) -> Json<serde_json::Value> {
+    Json(serde_json::to_value(state.expressions.snapshot()).unwrap())
+}
+
+#[derive(serde::Deserialize)]
+struct ExpressionsRequest {
+    /// Preset weights in \[0, 1\]. Omitted presets are left unchanged unless
+    /// `reset` is true.
+    #[serde(default)]
+    weights: HashMap<String, f32>,
+    /// If true, zero every known expression before applying `weights`.
+    #[serde(default)]
+    reset: bool,
+}
+
+async fn post_expressions(
+    State(state): State<ApiState>,
+    Json(req): Json<ExpressionsRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let snap = state.expressions.snapshot();
+    if !snap.ready {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            error_body(
+                "expressions require variant v2 with a bound VRM that has \
+                 VRMC_vrm.expressions (try POST /variant {\"variant\":\"v2\"} first)",
+            ),
+        );
+    }
+    let mut weights = HashMap::new();
+    if req.reset {
+        for name in &snap.available {
+            weights.insert(name.clone(), 0.0);
+        }
+    }
+    for (k, v) in req.weights {
+        if !snap.available.iter().any(|n| n == &k) {
+            return (
+                StatusCode::BAD_REQUEST,
+                error_body(format!(
+                    "unknown expression '{k}'; see GET /expressions for available presets"
+                )),
+            );
+        }
+        weights.insert(k, v.clamp(0.0, 1.0));
+    }
+    if weights.is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            error_body("provide weights and/or reset: true"),
+        );
+    }
+    let _ = state
+        .commands
+        .send(RigCommand::SetExpressions { weights: weights.clone() });
+    (
+        StatusCode::ACCEPTED,
+        Json(serde_json::json!({ "weights": weights })),
+    )
 }
 
 fn error_body(message: impl Into<String>) -> Json<serde_json::Value> {
@@ -317,13 +414,37 @@ async fn get_capabilities(State(state): State<ApiState>) -> Json<serde_json::Val
 
     Json(serde_json::json!({
         "name": "paperdoll pose API",
-        "description": "HTTP API for posing and animating a procedural 3D paper-doll \
-            humanoid rig running in paperdoll-app. Trigger a loaded pose or animation \
-            to make the rig move immediately; register new poses/animations at \
-            runtime to extend what's available, no server restart required.",
+        "description": "HTTP API for posing and animating a 3D paper-doll humanoid \
+            (v1 procedural or v2 VRM skinned) running in paperdoll-app. Trigger a \
+            loaded pose or animation to make the rig move immediately; register new \
+            poses/animations at runtime to extend what's available, no server restart \
+            required. Switch visuals with GET/POST /variant.",
+        "variant": state.variant.snapshot(),
+        "expressions": state.expressions.snapshot(),
+        "v2": {
+            "description": "Default visual. VRM 1.0 skinned mesh with 65 shared \
+                joints (body + face cosmetics + fingers). Drive fingers via pose \
+                joints (*_thumb_*, *_index_*, *_middle_*, *_ring_*, *_little_*). \
+                Drive face via GET/POST /expressions (not v1 pupil/eyelid cosmetics). \
+                Prefer finger_emote and expression presets when celebrating.",
+            "finger_joints": joint_names.iter().filter(|n| {
+                n.contains("_thumb_") || n.contains("_index_") || n.contains("_middle_")
+                    || n.contains("_ring_") || n.contains("_little_")
+            }).cloned().collect::<Vec<_>>(),
+            "expression_endpoints": ["GET /expressions", "POST /expressions"],
+            "preferred": true,
+        },
+        "launch": {
+            "cli": "paperdoll [--variant v1|v2]",
+            "env": "PAPERDOLL_VARIANT=v1|v2, PAPERDOLL_V2_CHARACTER=characters/default.vrm",
+            "default": "v2",
+        },
         "skeleton": {
             "joint_count": joint_names.len(),
             "joint_names": joint_names,
+            "notes": "Same 65-joint API for v1 and v2. Finger joints animate the \
+                mesh on v2; on v1 they are accepted but not visualized. Eight face \
+                cosmetics (pupils, eyelids, eyebrows, blush) are v1-only.",
         },
         "easing_options": easing_options,
         "posing_guide": {
@@ -518,6 +639,46 @@ async fn get_capabilities(State(state): State<ApiState>) -> Json<serde_json::Val
                     bytes; 504 {\"error\": \"...\"} if capture times out",
             },
             {
+                "method": "GET",
+                "path": "/variant",
+                "description": "Which visual is active: v1 (procedural capsule doll) \
+                    or v2 (VRM skinned humanoid). Pose/animation APIs are shared.",
+                "response_body": "{ variant, available, v2_character, v2_asset_present, \
+                    description }",
+            },
+            {
+                "method": "POST",
+                "path": "/variant",
+                "description": "Switch the live visual (despawn current, spawn the \
+                    other). Does not restart the process. Requires the v2 VRM file \
+                    on disk when switching to v2.",
+                "request_body": {
+                    "variant": "\"v1\" | \"v2\"",
+                },
+                "response_body": "202 Accepted {\"variant\": \"v1\"|\"v2\"}; \
+                    503 if v2 asset is missing",
+            },
+            {
+                "method": "GET",
+                "path": "/expressions",
+                "description": "VRM expression presets (blend shapes) for the active \
+                    v2 character: available names and current weights. Empty/not ready \
+                    on v1 or before the VRM finishes binding.",
+                "response_body": "{ ready, available, weights }",
+            },
+            {
+                "method": "POST",
+                "path": "/expressions",
+                "description": "Set VRM expression weights (v2 only). Values are \
+                    clamped to [0,1]. Use reset:true to zero all presets first.",
+                "request_body": {
+                    "weights": "object of preset_name → number, optional",
+                    "reset": "bool, optional — zero all known expressions first",
+                },
+                "response_body": "202 Accepted {\"weights\": {...}}; 503 if v2 \
+                    expressions not ready; 400 if body empty",
+            },
+            {
                 "method": "POST",
                 "path": "/pose",
                 "description": "Start a live transition of the rig into a named \
@@ -572,13 +733,15 @@ async fn get_capabilities(State(state): State<ApiState>) -> Json<serde_json::Val
 }
 
 /// Startup system: clones the shared `PoseLibrary`/`AnimationLibrary` (the exact
-/// instances `main()` inserted and `spawn_rig` also reads — see its doc comment),
-/// wires up the command and screenshot-request channels, and spawns the server thread.
+/// instances `main()` inserted and the visual spawn path also reads), wires up the
+/// command and screenshot-request channels, and spawns the server thread.
 pub fn start_http_server(
     mut commands: Commands,
     poses: Res<PoseLibrary>,
     animations: Res<AnimationLibrary>,
     live_state: Res<LiveState>,
+    variant: Res<SharedVariantState>,
+    expressions: Res<SharedExpressionState>,
 ) {
     let (tx, rx) = crossbeam_channel::unbounded::<RigCommand>();
     commands.insert_resource(RigCommandReceiver(rx));
@@ -590,6 +753,8 @@ pub fn start_http_server(
         poses: poses.0.clone(),
         animations: animations.0.clone(),
         live_state: live_state.clone(),
+        variant: variant.clone(),
+        expressions: expressions.clone(),
         commands: tx,
         screenshots: screenshot_tx,
     };
@@ -602,6 +767,8 @@ pub fn start_http_server(
                 let app = Router::new()
                     .route("/capabilities", get(get_capabilities))
                     .route("/state", get(get_state))
+                    .route("/variant", get(get_variant).post(post_variant))
+                    .route("/expressions", get(get_expressions).post(post_expressions))
                     .route("/pose", post(post_pose))
                     .route("/animation", post(post_animation))
                     .route("/poses", get(get_poses).post(post_register_pose))

@@ -1,30 +1,29 @@
 name: finger_emote
 description: >
-  V2 showcase: fist → peace / V-sign → open palm → happy expression peak →
-  settle. Exercises finger joints (proximal/intermediate/distal) plus
-  POST-style face blend shapes via jaw (expressions also available on
-  GET/POST /expressions).
+  v2 authoring bible: fist → peace/V → open palm → settle. Full finger chains
+  plus synced VRM expression morphs and a hand close-up camera. Copy this pattern
+  when inventing new hand-led cheers.
 loop: false
 keyframes:
   - pose: idle
-    duration_ms: 300
+    duration_ms: 280
     easing: ease_out
     camera: { yaw_deg: 15.0, pitch_deg: 5.0, distance: 2.2, look_at: [0.15, 1.35, 0.0] }
 
-  # Raise right hand toward camera, curl into a fist
+  # Raise right hand, curl into a fist
   - joints:
       right_shoulder:
-        rotation_deg: { x: 0.0, y: -55.0, z: -25.0 }
+        rotation_deg: { y: -55.0, z: -25.0 }
       right_elbow:
-        rotation_deg: { x: 0.0, y: 0.0, z: 70.0 }
+        rotation_deg: { z: 70.0 }
       right_wrist:
-        rotation_deg: { x: 0.0, y: 0.0, z: -15.0 }
+        rotation_deg: { z: -15.0 }
       right_thumb_metacarpal:
-        rotation_deg: { x: 20.0, y: 0.0, z: 35.0 }
+        rotation_deg: { x: 20.0, z: 35.0 }
       right_thumb_proximal:
-        rotation_deg: { x: 0.0, y: 0.0, z: 40.0 }
+        rotation_deg: { z: 40.0 }
       right_thumb_distal:
-        rotation_deg: { x: 0.0, y: 0.0, z: 35.0 }
+        rotation_deg: { z: 35.0 }
       right_index_proximal:
         rotation_deg: { z: 80.0 }
       right_index_intermediate:
@@ -49,20 +48,27 @@ keyframes:
         rotation_deg: { z: 90.0 }
       right_little_distal:
         rotation_deg: { z: 70.0 }
-    duration_ms: 600
+      left_shoulder:
+        rotation_deg: { z: -70.0 }
+      left_elbow:
+        rotation_deg: { z: -12.0 }
+    expressions:
+      happy: 0.4
+      ee: 0.15
+    duration_ms: 550
     easing: ease_in_out
     camera: { yaw_deg: 8.0, pitch_deg: 4.0, distance: 1.6, look_at: [0.25, 1.4, 0.0] }
 
-  # Peace / V-sign — index + middle extended
+  # Peace / V-sign
   - joints:
       right_shoulder:
-        rotation_deg: { x: 0.0, y: -50.0, z: -20.0 }
+        rotation_deg: { y: -50.0, z: -20.0 }
       right_elbow:
-        rotation_deg: { x: 0.0, y: 0.0, z: 65.0 }
+        rotation_deg: { z: 65.0 }
       right_wrist:
-        rotation_deg: { x: 0.0, y: 0.0, z: -10.0 }
+        rotation_deg: { z: -10.0 }
       right_thumb_metacarpal:
-        rotation_deg: { x: 15.0, y: 0.0, z: 40.0 }
+        rotation_deg: { x: 15.0, z: 40.0 }
       right_thumb_proximal:
         rotation_deg: { z: 50.0 }
       right_thumb_distal:
@@ -91,20 +97,39 @@ keyframes:
         rotation_deg: { z: 95.0 }
       right_little_distal:
         rotation_deg: { z: 70.0 }
-      jaw:
-        rotation_deg: { x: 8.0 }
-    duration_ms: 500
+      left_shoulder:
+        rotation_deg: { z: -70.0 }
+      left_elbow:
+        rotation_deg: { z: -12.0 }
+    expressions:
+      happy: 0.95
+      aa: 0.2
+    duration_ms: 480
     easing: ease_out
     camera: { yaw_deg: 5.0, pitch_deg: 3.0, distance: 1.45, look_at: [0.28, 1.42, 0.0] }
 
-  # Open palm wave-ish
+  # Morph blink overlay while holding the peace hand
+  - expressions:
+      blink: 1.0
+    hold: true
+    duration_ms: 90
+    easing: step
+
+  - expressions:
+      blink: 0.0
+      happy: 0.95
+    hold: true
+    duration_ms: 120
+    easing: ease_out
+
+  # Open palm
   - joints:
       right_shoulder:
-        rotation_deg: { x: 0.0, y: -45.0, z: -15.0 }
+        rotation_deg: { y: -45.0, z: -15.0 }
       right_elbow:
-        rotation_deg: { x: 0.0, y: 0.0, z: 55.0 }
+        rotation_deg: { z: 55.0 }
       right_wrist:
-        rotation_deg: { x: 0.0, y: 25.0, z: 0.0 }
+        rotation_deg: { y: 25.0 }
       right_thumb_metacarpal:
         rotation_deg: { z: 10.0 }
       right_thumb_proximal:
@@ -119,9 +144,14 @@ keyframes:
         rotation_deg: { z: 0.0 }
       right_little_proximal:
         rotation_deg: { z: 0.0 }
-      jaw:
-        rotation_deg: { x: 18.0 }
-    duration_ms: 450
+      left_shoulder:
+        rotation_deg: { z: -70.0 }
+      left_elbow:
+        rotation_deg: { z: -12.0 }
+    expressions:
+      happy: 0.7
+      aa: 0.35
+    duration_ms: 420
     easing: ease_in_out
     camera: { yaw_deg: 12.0, pitch_deg: 6.0, distance: 1.7, look_at: [0.2, 1.35, 0.0] }
 

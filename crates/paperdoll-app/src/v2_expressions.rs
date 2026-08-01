@@ -70,6 +70,39 @@ impl SharedExpressionState {
         g.pending = true;
         Ok(())
     }
+
+    /// Apply a full playback blend snapshot: every known preset is set (missing keys
+    /// → 0) so morphs fade out when a pose/animation clears the face. No-ops when
+    /// expressions aren't ready (v1 or unbound v2).
+    pub fn apply_playback_weights(&self, weights: &HashMap<String, f32>) {
+        let mut g = self.0.write().unwrap();
+        if !g.ready {
+            return;
+        }
+        let available = g.available.clone();
+        for name in available {
+            let w = weights.get(&name).copied().unwrap_or(0.0).clamp(0.0, 1.0);
+            g.weights.insert(name, w);
+        }
+        g.pending = true;
+    }
+
+    /// Return an error if any key is unknown when the catalog is ready; skip when not.
+    pub fn validate_names(&self, names: impl IntoIterator<Item = impl AsRef<str>>) -> Result<(), String> {
+        let g = self.0.read().unwrap();
+        if !g.ready {
+            return Ok(());
+        }
+        for name in names {
+            let name = name.as_ref();
+            if !g.available.iter().any(|n| n == name) {
+                return Err(format!(
+                    "unknown expression '{name}'; see GET /expressions for available presets"
+                ));
+            }
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Default, serde::Serialize)]

@@ -235,6 +235,9 @@ async fn post_register_pose(
     if let Err(e) = pose.resolve(&skeleton) {
         return (StatusCode::BAD_REQUEST, error_body(e.to_string()));
     }
+    if let Err(e) = state.expressions.validate_names(pose.expressions.keys()) {
+        return (StatusCode::BAD_REQUEST, error_body(e));
+    }
     let name = pose.name.clone();
     let replaced = state
         .poses
@@ -262,8 +265,33 @@ async fn post_register_animation(
     Json(file): Json<AnimationFile>,
 ) -> (StatusCode, Json<serde_json::Value>) {
     let name = file.name.clone();
+    // Validate expression keys on the raw keyframes before resolve (covers pose
+    // overlays and expression-only beats).
+    for (i, kf) in file.keyframes.iter().enumerate() {
+        if let Some(expr) = &kf.expressions {
+            if let Err(e) = state.expressions.validate_names(expr.keys()) {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    error_body(format!("keyframe {i}: {e}")),
+                );
+            }
+        }
+    }
     let resolved = {
         let poses = state.poses.read().unwrap();
+        // Also validate expressions carried by referenced poses.
+        for (i, kf) in file.keyframes.iter().enumerate() {
+            if let Some(pose_name) = &kf.pose {
+                if let Some(pose) = poses.get(pose_name) {
+                    if let Err(e) = state.expressions.validate_names(pose.expressions.keys()) {
+                        return (
+                            StatusCode::BAD_REQUEST,
+                            error_body(format!("keyframe {i} pose '{pose_name}': {e}")),
+                        );
+                    }
+                }
+            }
+        }
         resolve_animation(file, &poses)
     };
     match resolved {
@@ -355,7 +383,7 @@ right_shoulder.z=+45 with left_shoulder.z=-45 puts a hand on each hip.",
     (
         "idle",
         "asymmetric full-body pose (arm + knee + pelvis) — also the IdleRevert default \
-after inactivity.",
+after inactivity. Clears VRM expression weights so leftover morphs fade out.",
     ),
     (
         "victory",
@@ -374,7 +402,12 @@ to bring the hand near the head.",
     (
         "point",
         "arm forward toward camera (shoulder y) with a frontal camera frame — \
-pair with point_hero animation for a push-in.",
+pair with point_hero animation for a push-in. Index finger extended; other digits curled.",
+    ),
+    (
+        "peace_sign_right",
+        "v2 finger exemplar: right index + middle extended, ring/little + thumb curled. \
+Author finger joints (*_proximal/*_intermediate/*_distal) the same way as body joints.",
     ),
 ];
 
@@ -407,6 +440,7 @@ async fn get_capabilities(State(state): State<ApiState>) -> Json<serde_json::Val
                     "demonstrates": demonstrates,
                     "description": pose.description,
                     "joints": pose.joints,
+                    "expressions": pose.expressions,
                 }))
             })
             .collect()
@@ -425,8 +459,9 @@ async fn get_capabilities(State(state): State<ApiState>) -> Json<serde_json::Val
             "description": "Default visual. VRM 1.0 skinned mesh with 65 shared \
                 joints (body + face cosmetics + fingers). Drive fingers via pose \
                 joints (*_thumb_*, *_index_*, *_middle_*, *_ring_*, *_little_*). \
-                Drive face via GET/POST /expressions (not v1 pupil/eyelid cosmetics). \
-                Prefer finger_emote and expression presets when celebrating.",
+                Drive face via pose/keyframe `expressions` weights (synced with \
+                motion) or GET/POST /expressions. Prefer finger_emote, \
+                peace_sign_right, and happy_bounce as authoring models.",
             "finger_joints": joint_names.iter().filter(|n| {
                 n.contains("_thumb_") || n.contains("_index_") || n.contains("_middle_")
                     || n.contains("_ring_") || n.contains("_little_")
@@ -491,21 +526,21 @@ async fn get_capabilities(State(state): State<ApiState>) -> Json<serde_json::Val
                 — pelvis x also tips the legs (hips are pelvis children) and reads as \
                 the whole figure tipping over. pelvis.z is a side-to-side hip cock \
                 (see `idle`).",
-            "face_chain": "Face joints live on the +Z (front) surface of the head. \
-                jaw: rotation X opens the mouth (0=closed, ~45=fully open) and reveals \
-                the dark mouth interior behind the lip. *_eyelid: rotation X swings the \
-                lid down over the eye (0=natural resting lid, ~85=fully closed, negative \
-                = pulled back wide-eyed) — use ~85 for blinks. *_eyebrow: rotation Z, \
-                MIRRORED like arms — left_eyebrow +Z furrows the inner brow down (angry), \
-                -Z raises it (happy/surprised); right_eyebrow is the opposite sign. \
-                *_pupil: use `translation` (not rotation) to shift the gaze — rest is \
-                [0, 0, 0.012], move both pupils the same small delta (±0.008) to look \
-                around. *_blush: hidden inside the head at rest; set `translation` \
-                [±0.075, -0.025, 0.07] to pop the blush oval out onto the cheek. \
-                Expression poses in the library: happy, angry, sad, surprised_face, \
-                excited, sleepy, wink, dreamy, tsundere (face-only — in animations, \
-                reference them with `hold: true` to overlay the face without resetting \
-                the body).",
+            "face_chain": "On v2 (default): put VRM morph weights in pose/keyframe \
+                `expressions` (happy, blink, blinkLeft, blinkRight, aa/ih/ou/ee/oh, \
+                angry, sad, relaxed — see GET /expressions). Weights blend with the \
+                same easing as joints; unlisted presets fade to 0 unless hold:true \
+                (sparse overlay for blinks). Do NOT rely on v1 pupil/eyelid/eyebrow/\
+                blush joints for v2 face — they are cosmetics on the procedural doll. \
+                On v1 only: Face joints live on the +Z (front) surface of the head. \
+                jaw: rotation X opens the mouth; *_eyelid: rotation X closes the lid \
+                (~85=closed); *_eyebrow: rotation Z mirrored; *_pupil / *_blush: use \
+                translation.",
+            "finger_chain": "v2 finger joints: left|right_{thumb,index,middle,ring,\
+                little}_{metacarpal|proximal|intermediate|distal} (thumb has \
+                metacarpal/proximal/distal). Curl toward a fist with positive z on \
+                proximal/intermediate/distal (~80–95). See peace_sign_right and \
+                finger_emote for worked finger recipes.",
             "mirrored_sign_convention": "left_* and right_* joints are mirror images \
                 (opposite sign on the rest offset's X component), so the SAME visual \
                 pose on both sides needs OPPOSITE-signed rotation_deg.z — e.g. \
@@ -514,8 +549,9 @@ async fn get_capabilities(State(state): State<ApiState>) -> Json<serde_json::Val
                 to the other side, negate z (and whichever other axis you're using).",
             "sparse_poses": "A pose only lists joints it changes; omitted joints return \
                 to the skeleton rest transform when blending into that pose. An empty \
-                joints map (`t_pose`) is a full reset to rest. Always verify with \
-                GET /screenshot after POST /pose.",
+                joints map (`t_pose`) is a full reset to rest. Expression weights work \
+                the same way: omitted presets fade to 0 (unless hold). Always verify \
+                with GET /screenshot after POST /pose.",
             "how_to_verify_a_new_pose": "POST it to /poses, POST its name to /pose, \
                 then GET /screenshot — don't assume an angle looks right without \
                 checking, since the axis conventions above are about direction, not \
@@ -560,6 +596,9 @@ async fn get_capabilities(State(state): State<ApiState>) -> Json<serde_json::Val
                 },
             },
             "camera": "object, optional — see `camera_shape` above",
+            "expressions": "object, optional — VRM morph preset → weight in [0,1] \
+                (v2). Keys from GET /expressions `available`. Blended with joints; \
+                omitted presets fade to 0. Example: {\"happy\": 1.0, \"blink\": 0.0}",
             "note": "Every field under `joints` is sparse: a joint not listed keeps \
                 the skeleton's rest transform, and within a listed joint an omitted \
                 `rotation_deg`/`translation` keeps that specific part of the rest \
@@ -579,18 +618,20 @@ async fn get_capabilities(State(state): State<ApiState>) -> Json<serde_json::Val
                         a pose's `joints` field",
                     "camera": "object, optional — see `camera_shape`; overlays the \
                         referenced pose's camera when both are set",
+                    "expressions": "object, optional — VRM morph weights; overlays the \
+                        referenced pose's expressions when both are set. Expression-only \
+                        keyframes (no pose/joints/camera) hold the body like camera-only.",
                     "duration_ms": "integer, required — time to blend into this \
                         keyframe from wherever the previous one (or the entry \
                         transition, for keyframe 0) left off",
                     "easing": "one of `easing_options` above, default \"linear\"",
                     "hold": "boolean, optional, default false — true makes this keyframe \
-                        a sparse OVERLAY: only its listed joints move; every unlisted \
-                        joint keeps its current value instead of resetting to rest. \
-                        Use for blinks, gaze shifts, blush pop-outs, or layering a \
-                        face-only expression pose onto whatever the body is doing.",
-                    "note": "Each keyframe needs `pose`, `joints`, and/or `camera` \
-                        (and must not set both `pose` and `joints`). Camera-only \
-                        keyframes hold the body.",
+                        a sparse OVERLAY: only its listed joints/expressions move; every \
+                        unlisted joint/expression keeps its current value. Use for \
+                        blink overlays on top of an ongoing body pose.",
+                    "note": "Each keyframe needs `pose`, `joints`, `camera`, and/or \
+                        `expressions` (and must not set both `pose` and `joints`). \
+                        Camera-only / expression-only keyframes hold the body.",
                 },
             ],
         },
@@ -612,7 +653,8 @@ async fn get_capabilities(State(state): State<ApiState>) -> Json<serde_json::Val
                     blend), and the current orbit camera. Use with GET /screenshot \
                     to verify poses numerically and visually.",
                 "response_body": "{ playback: { mode, animation?, keyframe_index? }, \
-                    joints: { <name>: { rotation_deg: {x,y,z} } }, camera: camera_shape }",
+                    joints: { <name>: { rotation_deg: {x,y,z} } }, camera: camera_shape, \
+                    expressions?: { <preset>: number } }",
             },
             {
                 "method": "GET",

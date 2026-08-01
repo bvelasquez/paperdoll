@@ -15,11 +15,11 @@ agent (human or AI) can pose the character on demand.
 - **`crates/paperdoll-app`** — a Bevy binary that renders the rig as a
   procedural placeholder humanoid (capsules per bone, spheres per joint) and
   will host the HTTP pose API.
-- **`assets/poses/*.yaml`**, **`assets/animations/*.yaml`** — example pose
-  and animation definitions (`t_pose`, `wave`/`wave_return`/`wave_animation`,
-  `idle`, `hands_on_hips`, `victory`, `think`, `shrug`, `reach`, `bow`,
-  `point`, plus choreography: `hero_intro`, `orbit_victory`, `showcase`,
-  `point_hero`).
+- **`assets/poses/*.yaml`**, **`assets/animations/*.yaml`** — curated v2 pose
+  and animation library (`idle`, `t_pose`, `wave`/`wave_return`, `victory`,
+  finger exemplars `peace_sign_right`/`fist_pump_right`/`point`, plus
+  `hands_on_hips`/`bow`/`think`/`shrug`; animations: `wave_animation`,
+  `finger_emote`, `happy_bounce`, `hero_intro`, `point_hero`, `orbit_victory`).
 
 ## Status
 
@@ -88,6 +88,18 @@ See `assets/characters/ATTRIBUTION.md` for the seed model license.
 
 ### Expressions (v2)
 
+Drive face morphs two ways (same presets — `happy`, `blink`, `aa`/`ih`/`ou`/`ee`/`oh`, …):
+
+1. **On poses / animation keyframes** (preferred for choreography) — weights blend
+   with the same easing as joints:
+   ```yaml
+   expressions:
+     happy: 1.0
+     blink: 0.0
+   ```
+   Use `hold: true` on an expression-only keyframe for a blink overlay.
+2. **HTTP** — set weights immediately without changing the body:
+
 ```sh
 curl -s http://127.0.0.1:7878/expressions
 curl -s -X POST http://127.0.0.1:7878/expressions \
@@ -96,7 +108,20 @@ curl -s -X POST http://127.0.0.1:7878/expressions \
 ```
 
 Finger poses use the same `/pose` / `/animation` joints (`left_index_proximal`,
-`right_thumb_distal`, …). Try `finger_emote` when running v2.
+`right_thumb_distal`, …).
+
+### Authoring models (copy these)
+
+When adding new content, start from one of these shipped exemplars:
+
+| Model | File | What it teaches |
+|-------|------|-----------------|
+| Gesture pose + fingers | `assets/poses/peace_sign_right.yaml` | Full digit chain for a named hand shape |
+| Finger + face animation | `assets/animations/finger_emote.yaml` | Inline finger keyframes, morph blinks with `hold`, hand camera |
+| Cheer animation | `assets/animations/happy_bounce.yaml` | Pose refs + expression overlays + timing |
+
+Also useful: `wave_animation` (simple pose-ref loop), `hero_intro` / `point_hero`
+(camera push-in), `orbit_victory` (camera-only orbit while body holds).
 
 
 ## Running

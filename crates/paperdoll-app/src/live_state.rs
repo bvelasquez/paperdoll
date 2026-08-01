@@ -14,6 +14,8 @@ pub struct LiveStateSnapshot {
     pub playback: PlaybackStatus,
     pub joints: BTreeMap<String, JointState>,
     pub camera: ResolvedCamera,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub expressions: BTreeMap<String, f32>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -40,6 +42,7 @@ impl Default for LiveStateSnapshot {
             },
             joints: BTreeMap::new(),
             camera: DEFAULT_CAMERA,
+            expressions: BTreeMap::new(),
         }
     }
 }
@@ -88,6 +91,7 @@ impl LiveState {
             playback,
             joints,
             camera: pose.camera,
+            expressions: pose.expressions.iter().map(|(k, v)| (k.clone(), *v)).collect(),
         };
     }
 }

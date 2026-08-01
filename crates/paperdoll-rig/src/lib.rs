@@ -15,8 +15,8 @@ pub use camera::{
     blend_cameras, merge_camera_targets, CameraTarget, ResolvedCamera, DEFAULT_CAMERA,
 };
 pub use interpolation::{
-    blend_poses, blend_translations, duration_ms_for_speed, PlaybackMode, PlaybackState,
-    PlaybackTarget,
+    blend_expressions, blend_poses, blend_translations, duration_ms_for_speed, PlaybackMode,
+    PlaybackState, PlaybackTarget,
 };
 pub use pose::{EulerDeg, JointTarget, Pose, PoseError, ResolvedPose};
 pub use skeleton::{Joint, JointId, Skeleton, SkeletonBuilder};

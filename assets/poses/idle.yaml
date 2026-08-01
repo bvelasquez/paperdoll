@@ -1,14 +1,58 @@
 name: idle
 description: >
-  Relaxed upright stance: torso erect (no pelvis lean — that tipped a hip and
-  drove a foot through the floor), right hand on hip, left arm down. Both feet
-  stay planted. IdleRevert target after inactivity.
+  Relaxed upright stance: torso erect, right hand on hip, left arm down.
+  Both feet planted. IdleRevert target after inactivity — expressions empty
+  so leftover VRM morphs fade to zero on revert.
 joints:
   right_shoulder:
     rotation_deg: { z: 42.0 }
   right_elbow:
     rotation_deg: { z: 95.0 }
+  right_wrist:
+    rotation_deg: { z: -8.0 }
+  # Soft fist at the hip
+  right_thumb_metacarpal:
+    rotation_deg: { x: 12.0, z: 28.0 }
+  right_thumb_proximal:
+    rotation_deg: { z: 30.0 }
+  right_thumb_distal:
+    rotation_deg: { z: 25.0 }
+  right_index_proximal:
+    rotation_deg: { z: 55.0 }
+  right_index_intermediate:
+    rotation_deg: { z: 60.0 }
+  right_index_distal:
+    rotation_deg: { z: 40.0 }
+  right_middle_proximal:
+    rotation_deg: { z: 58.0 }
+  right_middle_intermediate:
+    rotation_deg: { z: 65.0 }
+  right_middle_distal:
+    rotation_deg: { z: 42.0 }
+  right_ring_proximal:
+    rotation_deg: { z: 58.0 }
+  right_ring_intermediate:
+    rotation_deg: { z: 65.0 }
+  right_ring_distal:
+    rotation_deg: { z: 42.0 }
+  right_little_proximal:
+    rotation_deg: { z: 52.0 }
+  right_little_intermediate:
+    rotation_deg: { z: 58.0 }
+  right_little_distal:
+    rotation_deg: { z: 38.0 }
   left_shoulder:
     rotation_deg: { z: -78.0 }
   left_elbow:
     rotation_deg: { z: -10.0 }
+  left_wrist:
+    rotation_deg: { z: 5.0 }
+  left_index_proximal:
+    rotation_deg: { z: 12.0 }
+  left_middle_proximal:
+    rotation_deg: { z: 14.0 }
+  left_ring_proximal:
+    rotation_deg: { z: 14.0 }
+  left_little_proximal:
+    rotation_deg: { z: 10.0 }
+expressions: {}

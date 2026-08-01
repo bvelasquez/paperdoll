@@ -49,8 +49,13 @@ pub struct JointTarget {
 /// listed keep the skeleton's rest transform. Optional [`camera`] is likewise sparse:
 /// omitted fields (or a missing `camera` block) leave the live camera alone.
 ///
-/// `hold_joints` is set by the animation resolver for camera-only keyframes so an
-/// empty `joints` map means "keep the current body" rather than "reset to T-pose".
+/// Optional [`expressions`] are VRM face morph preset weights (v2). Keys are preset
+/// names (`happy`, `blink`, …); values are in `[0, 1]`. Unlisted presets blend toward
+/// 0 unless `hold_joints` is set (sparse overlay — see animation keyframes).
+///
+/// `hold_joints` is set by the animation resolver for camera-only / expression-only
+/// keyframes so an empty `joints` map means "keep the current body" rather than
+/// "reset to T-pose".
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Pose {
     pub name: String,
@@ -60,6 +65,10 @@ pub struct Pose {
     pub joints: HashMap<String, JointTarget>,
     #[serde(default)]
     pub camera: Option<CameraTarget>,
+    /// VRM expression preset weights (v2). Soft-validated at HTTP registration time
+    /// against the live catalog; the rig accepts any string keys.
+    #[serde(default)]
+    pub expressions: HashMap<String, f32>,
     /// When true, blending into this pose keeps the previous joint rotations instead
     /// of treating empty `joints` as a rest-pose reset. Not authored in YAML — set by
     /// [`crate::yaml::resolve_animation`] for camera-only keyframes.
@@ -70,12 +79,13 @@ pub struct Pose {
 /// A [`Pose`] with joint names resolved to [`JointId`]s and rotations/translations
 /// converted to runtime types, ready for interpolation. `camera` is always fully
 /// resolved in live/held state so sparse authored patches have a concrete base to
-/// blend against.
+/// blend against. `expressions` carries VRM morph weights through the same blend.
 #[derive(Debug, Clone)]
 pub struct ResolvedPose {
     pub joint_rotations: HashMap<JointId, Quat>,
     pub joint_translations: HashMap<JointId, Vec3>,
     pub camera: ResolvedCamera,
+    pub expressions: HashMap<String, f32>,
 }
 
 impl Default for ResolvedPose {
@@ -84,6 +94,7 @@ impl Default for ResolvedPose {
             joint_rotations: HashMap::new(),
             joint_translations: HashMap::new(),
             camera: DEFAULT_CAMERA,
+            expressions: HashMap::new(),
         }
     }
 }
@@ -114,6 +125,11 @@ impl Pose {
                 resolved.joint_translations.insert(id, Vec3::from(t));
             }
         }
+        resolved.expressions = self
+            .expressions
+            .iter()
+            .map(|(k, v)| (k.clone(), (*v).clamp(0.0, 1.0)))
+            .collect();
         Ok(resolved)
     }
 }
@@ -142,6 +158,7 @@ mod tests {
             description: None,
             joints,
             camera: None,
+            expressions: HashMap::new(),
             hold_joints: false,
         };
 
@@ -164,6 +181,7 @@ mod tests {
             description: None,
             joints,
             camera: None,
+            expressions: HashMap::new(),
             hold_joints: false,
         };
         assert!(matches!(
@@ -182,9 +200,31 @@ joints:
     rotation_deg: { x: 0.0, y: 0.0, z: -80.0 }
   right_elbow:
     rotation_deg: { x: -30.0, y: 0.0, z: 0.0 }
+expressions:
+  happy: 0.8
 "#;
         let pose: Pose = serde_yaml::from_str(yaml).unwrap();
         assert_eq!(pose.name, "wave");
         assert_eq!(pose.joints.len(), 2);
+        assert!((pose.expressions["happy"] - 0.8).abs() < 1e-6);
+    }
+
+    #[test]
+    fn resolve_clamps_expression_weights() {
+        let skeleton = Skeleton::humanoid_default();
+        let mut expressions = HashMap::new();
+        expressions.insert("happy".into(), 1.5);
+        expressions.insert("blink".into(), -0.2);
+        let pose = Pose {
+            name: "face".into(),
+            description: None,
+            joints: HashMap::new(),
+            camera: None,
+            expressions,
+            hold_joints: false,
+        };
+        let resolved = pose.resolve(&skeleton).unwrap();
+        assert!((resolved.expressions["happy"] - 1.0).abs() < 1e-6);
+        assert!((resolved.expressions["blink"] - 0.0).abs() < 1e-6);
     }
 }

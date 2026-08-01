@@ -1,7 +1,7 @@
 name: bow
 description: >
-  Polite forward bow from the spine/chest (not the pelvis — pelvis x tips the
-  whole figure including the legs). Mild bend so arms read as down at the sides.
+  Polite forward bow from the spine/chest (not the pelvis). Arms down with
+  relaxed open hands. Soft respectful expression.
 joints:
   spine:
     rotation_deg: { x: 16.0 }
@@ -17,8 +17,27 @@ joints:
     rotation_deg: { z: -18.0 }
   right_elbow:
     rotation_deg: { z: 18.0 }
+  left_wrist:
+    rotation_deg: { z: 5.0 }
+  right_wrist:
+    rotation_deg: { z: -5.0 }
+  left_index_proximal:
+    rotation_deg: { z: 12.0 }
+  left_middle_proximal:
+    rotation_deg: { z: 14.0 }
+  left_ring_proximal:
+    rotation_deg: { z: 14.0 }
+  right_index_proximal:
+    rotation_deg: { z: 12.0 }
+  right_middle_proximal:
+    rotation_deg: { z: 14.0 }
+  right_ring_proximal:
+    rotation_deg: { z: 14.0 }
 camera:
   yaw_deg: 20.0
   pitch_deg: 12.0
   distance: 3.8
   look_at: [0.0, 0.7, 0.0]
+expressions:
+  relaxed: 0.55
+  blink: 0.15

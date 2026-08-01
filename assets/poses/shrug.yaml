@@ -1,6 +1,6 @@
 name: shrug
 description: >
-  Shoulders up, elbows out, palms-ish open — a clear "I don't know" shrug.
+  Shoulders up, elbows out, palms open (fingers splayed). Soft confused mouth.
   Uses clavicle z plus mirrored shoulder/elbow rotations.
 joints:
   left_clavicle:
@@ -15,5 +15,32 @@ joints:
     rotation_deg: { z: -70.0 }
   right_elbow:
     rotation_deg: { z: 70.0 }
+  left_wrist:
+    rotation_deg: { y: -35.0, z: -10.0 }
+  right_wrist:
+    rotation_deg: { y: 35.0, z: 10.0 }
+  left_thumb_metacarpal:
+    rotation_deg: { z: -8.0 }
+  left_index_proximal:
+    rotation_deg: { z: 5.0 }
+  left_middle_proximal:
+    rotation_deg: { z: 5.0 }
+  left_ring_proximal:
+    rotation_deg: { z: 8.0 }
+  left_little_proximal:
+    rotation_deg: { z: 10.0 }
+  right_thumb_metacarpal:
+    rotation_deg: { z: 8.0 }
+  right_index_proximal:
+    rotation_deg: { z: 5.0 }
+  right_middle_proximal:
+    rotation_deg: { z: 5.0 }
+  right_ring_proximal:
+    rotation_deg: { z: 8.0 }
+  right_little_proximal:
+    rotation_deg: { z: 10.0 }
   neck:
     rotation_deg: { x: -8.0 }
+expressions:
+  oh: 0.45
+  relaxed: 0.25

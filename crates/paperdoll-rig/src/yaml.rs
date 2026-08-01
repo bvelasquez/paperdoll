@@ -19,8 +19,8 @@ pub enum YamlLoadError {
         pose_name: String,
     },
     #[error(
-        "animation '{animation}' keyframe {index} must set `pose`, `joints`, and/or `camera` \
-         (and must not set both `pose` and `joints`)"
+        "animation '{animation}' keyframe {index} must set `pose`, `joints`, `camera`, \
+         and/or `expressions` (and must not set both `pose` and `joints`)"
     )]
     InvalidKeyframe { animation: String, index: usize },
 }
@@ -93,6 +93,10 @@ fn resolve_keyframe_pose(
     spec: &KeyframeSpec,
     poses: &HashMap<String, Pose>,
 ) -> Result<Pose, YamlLoadError> {
+    let has_expressions = spec
+        .expressions
+        .as_ref()
+        .is_some_and(|e| !e.is_empty());
     let mut pose = match (&spec.pose, &spec.joints) {
         (Some(name), None) => poses
             .get(name)
@@ -107,15 +111,18 @@ fn resolve_keyframe_pose(
             description: None,
             joints: joints.clone(),
             camera: None,
+            expressions: HashMap::new(),
             hold_joints: false,
         },
-        (None, None) if spec.camera.is_some() => Pose {
-            // Camera-only: empty joints + hold_joints so the body freezes while the
-            // camera moves (without hold_joints, empty joints would reset to T-pose).
+        (None, None) if spec.camera.is_some() || has_expressions => Pose {
+            // Camera-only and/or expression-only: empty joints + hold_joints so the
+            // body freezes while the camera / face morphs move (without hold_joints,
+            // empty joints would reset to T-pose).
             name: format!("{animation_name}#{index}"),
             description: None,
             joints: HashMap::new(),
             camera: None,
+            expressions: HashMap::new(),
             hold_joints: true,
         },
         _ => {
@@ -126,11 +133,16 @@ fn resolve_keyframe_pose(
         }
     };
     // `hold: true` turns the keyframe into a sparse overlay: only the listed joints
-    // move; everything else keeps its current value (see interpolation::resolve_target).
+    // / expressions move; everything else keeps its current value.
     if spec.hold.unwrap_or(false) {
         pose.hold_joints = true;
     }
     pose.camera = merge_camera_targets(pose.camera.take(), spec.camera.clone());
+    if let Some(expr) = &spec.expressions {
+        for (k, v) in expr {
+            pose.expressions.insert(k.clone(), *v);
+        }
+    }
     Ok(pose)
 }
 
@@ -253,6 +265,7 @@ keyframes:
                 description: None,
                 joints: HashMap::new(),
                 camera: None,
+                expressions: HashMap::new(),
                 hold_joints: false,
             },
         );
@@ -288,5 +301,56 @@ keyframes:
         let animations = load_animations_from_dir(&anim_dir.0, &poses).unwrap();
         let anim = &animations["inline"];
         assert_eq!(anim.keyframes[0].pose.joints.len(), 1);
+    }
+
+    #[test]
+    fn keyframe_expressions_overlay_pose_expressions() {
+        let mut poses = HashMap::new();
+        let mut expr = HashMap::new();
+        expr.insert("happy".into(), 0.5);
+        poses.insert(
+            "wave".to_string(),
+            Pose {
+                name: "wave".to_string(),
+                description: None,
+                joints: HashMap::new(),
+                camera: None,
+                expressions: expr,
+                hold_joints: false,
+            },
+        );
+        let file: AnimationFile = serde_yaml::from_str(
+            r#"
+name: cheer
+keyframes:
+  - pose: wave
+    expressions: { happy: 1.0, blink: 0.3 }
+    duration_ms: 200
+    easing: ease_out
+"#,
+        )
+        .unwrap();
+        let animation = resolve_animation(file, &poses).unwrap();
+        let e = &animation.keyframes[0].pose.expressions;
+        assert!((e["happy"] - 1.0).abs() < 1e-6);
+        assert!((e["blink"] - 0.3).abs() < 1e-6);
+    }
+
+    #[test]
+    fn expression_only_keyframe_is_valid_hold() {
+        let file: AnimationFile = serde_yaml::from_str(
+            r#"
+name: blink
+keyframes:
+  - expressions: { blink: 1.0 }
+    hold: true
+    duration_ms: 90
+    easing: step
+"#,
+        )
+        .unwrap();
+        let animation = resolve_animation(file, &HashMap::new()).unwrap();
+        assert!(animation.keyframes[0].pose.hold_joints);
+        assert!((animation.keyframes[0].pose.expressions["blink"] - 1.0).abs() < 1e-6);
     }
 }

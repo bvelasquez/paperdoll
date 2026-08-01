@@ -1,3 +1,6 @@
 name: t_pose
-description: "Rest pose: arms out to the sides, standing straight."
+description: >
+  Rest pose: arms out to the sides, standing straight. Clears VRM expression
+  weights (empty map fades morphs to zero).
 joints: {}
+expressions: {}

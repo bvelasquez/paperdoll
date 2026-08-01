@@ -1,16 +1,60 @@
 name: hands_on_hips
 description: >
-  Confident "power stance": both hands resting on the hips, elbows out.
-  Demonstrates the mirrored-sign convention documented in GET /capabilities —
-  the left/right shoulder and elbow rotations are equal magnitude, opposite
-  sign, because the two arms' rest offsets point in opposite local
-  directions.
+  Confident power stance: both hands on hips, elbows out, soft fists.
+  Mirrored-sign convention: right_shoulder.z=+45 with left_shoulder.z=-45.
 joints:
   right_shoulder:
     rotation_deg: { z: 45.0 }
   right_elbow:
     rotation_deg: { z: 90.0 }
+  right_wrist:
+    rotation_deg: { z: -12.0 }
+  right_thumb_metacarpal:
+    rotation_deg: { x: 15.0, z: 30.0 }
+  right_thumb_proximal:
+    rotation_deg: { z: 32.0 }
+  right_index_proximal:
+    rotation_deg: { z: 60.0 }
+  right_index_intermediate:
+    rotation_deg: { z: 65.0 }
+  right_middle_proximal:
+    rotation_deg: { z: 65.0 }
+  right_middle_intermediate:
+    rotation_deg: { z: 70.0 }
+  right_ring_proximal:
+    rotation_deg: { z: 65.0 }
+  right_ring_intermediate:
+    rotation_deg: { z: 70.0 }
+  right_little_proximal:
+    rotation_deg: { z: 58.0 }
+  right_little_intermediate:
+    rotation_deg: { z: 62.0 }
   left_shoulder:
     rotation_deg: { z: -45.0 }
   left_elbow:
     rotation_deg: { z: -90.0 }
+  left_wrist:
+    rotation_deg: { z: 12.0 }
+  left_thumb_metacarpal:
+    rotation_deg: { x: 15.0, z: -30.0 }
+  left_thumb_proximal:
+    rotation_deg: { z: 32.0 }
+  left_index_proximal:
+    rotation_deg: { z: 60.0 }
+  left_index_intermediate:
+    rotation_deg: { z: 65.0 }
+  left_middle_proximal:
+    rotation_deg: { z: 65.0 }
+  left_middle_intermediate:
+    rotation_deg: { z: 70.0 }
+  left_ring_proximal:
+    rotation_deg: { z: 65.0 }
+  left_ring_intermediate:
+    rotation_deg: { z: 70.0 }
+  left_little_proximal:
+    rotation_deg: { z: 58.0 }
+  left_little_intermediate:
+    rotation_deg: { z: 62.0 }
+expressions:
+  happy: 0.3
+  relaxed: 0.2

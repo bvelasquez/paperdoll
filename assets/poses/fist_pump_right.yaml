@@ -1,16 +1,56 @@
 name: fist_pump_right
 description: >
-  Right arm thrust skyward in triumphant fist pump, classic shonen victory.
+  Right arm thrust skyward with a real fist (full digit curl), left arm relaxed.
+  Excited happy + slight open mouth morph.
 joints:
   right_shoulder:
-    rotation_deg: { x: 0.0, y: -5.0, z: -95.0 }
+    rotation_deg: { y: -5.0, z: -95.0 }
   right_elbow:
-    rotation_deg: { x: 0.0, y: 0.0, z: -15.0 }
+    rotation_deg: { z: -15.0 }
+  right_wrist:
+    rotation_deg: { z: -10.0 }
+  right_thumb_metacarpal:
+    rotation_deg: { x: 20.0, z: 35.0 }
+  right_thumb_proximal:
+    rotation_deg: { z: 40.0 }
+  right_thumb_distal:
+    rotation_deg: { z: 35.0 }
+  right_index_proximal:
+    rotation_deg: { z: 80.0 }
+  right_index_intermediate:
+    rotation_deg: { z: 90.0 }
+  right_index_distal:
+    rotation_deg: { z: 70.0 }
+  right_middle_proximal:
+    rotation_deg: { z: 85.0 }
+  right_middle_intermediate:
+    rotation_deg: { z: 95.0 }
+  right_middle_distal:
+    rotation_deg: { z: 70.0 }
+  right_ring_proximal:
+    rotation_deg: { z: 85.0 }
+  right_ring_intermediate:
+    rotation_deg: { z: 95.0 }
+  right_ring_distal:
+    rotation_deg: { z: 70.0 }
+  right_little_proximal:
+    rotation_deg: { z: 80.0 }
+  right_little_intermediate:
+    rotation_deg: { z: 90.0 }
+  right_little_distal:
+    rotation_deg: { z: 70.0 }
   left_shoulder:
-    rotation_deg: { x: 0.0, y: 0.0, z: -55.0 }
+    rotation_deg: { z: -55.0 }
   left_elbow:
-    rotation_deg: { x: 0.0, y: 0.0, z: -20.0 }
+    rotation_deg: { z: -20.0 }
+  left_index_proximal:
+    rotation_deg: { z: 20.0 }
+  left_middle_proximal:
+    rotation_deg: { z: 22.0 }
   chest:
-    rotation_deg: { x: 0.0, y: 5.0, z: 0.0 }
+    rotation_deg: { y: 5.0 }
   neck:
-    rotation_deg: { x: 0.0, y: 5.0, z: 0.0 }
+    rotation_deg: { y: 5.0, x: -6.0 }
+expressions:
+  happy: 1.0
+  aa: 0.25

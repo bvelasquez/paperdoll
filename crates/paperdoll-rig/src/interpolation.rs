@@ -142,6 +142,9 @@ fn resolve_or_empty(pose: &Pose, skeleton: &Skeleton) -> ResolvedPose {
 /// sparse overlay: its listed joints become the new targets while every unlisted
 /// joint keeps its current value (instead of resetting to rest) — this is how a
 /// blink or gaze-shift keyframe can ride on top of an ongoing body pose.
+///
+/// Expressions follow the same hold rule: with `hold_joints`, unlisted presets keep
+/// their previous weights; without hold, missing presets in the target blend toward 0.
 fn resolve_target(pose: &Pose, skeleton: &Skeleton, from: &ResolvedPose) -> ResolvedPose {
     let camera = match &pose.camera {
         Some(patch) => from.camera.with_patch(patch),
@@ -155,12 +158,42 @@ fn resolve_target(pose: &Pose, skeleton: &Skeleton, from: &ResolvedPose) -> Reso
         for (id, t) in &from.joint_translations {
             resolved.joint_translations.entry(*id).or_insert(*t);
         }
+        // Sparse expression overlay: start from previous weights, then apply listed.
+        let mut expressions = from.expressions.clone();
+        for (k, v) in &resolved.expressions {
+            expressions.insert(k.clone(), *v);
+        }
+        // If the pose authored no expressions, keep `from` entirely.
+        if pose.expressions.is_empty() {
+            expressions = from.expressions.clone();
+        }
+        resolved.expressions = expressions;
         resolved.camera = camera;
         return resolved;
     }
     let mut resolved = resolve_or_empty(pose, skeleton);
     resolved.camera = camera;
     resolved
+}
+
+/// Lerp expression weights. A key present in only one side falls back to 0 on the
+/// other, so a non-hold pose that omits a preset fades that morph out.
+pub fn blend_expressions(
+    from: &HashMap<String, f32>,
+    to: &HashMap<String, f32>,
+    eased_t: f32,
+) -> HashMap<String, f32> {
+    let keys: HashSet<&String> = from.keys().chain(to.keys()).collect();
+    let mut result = HashMap::with_capacity(keys.len());
+    for key in keys {
+        let a = from.get(key).copied().unwrap_or(0.0);
+        let b = to.get(key).copied().unwrap_or(0.0);
+        let v = a + (b - a) * eased_t;
+        if v.abs() > 1e-5 || to.contains_key(key) {
+            result.insert(key.clone(), v.clamp(0.0, 1.0));
+        }
+    }
+    result
 }
 
 fn blend_frame(
@@ -173,6 +206,7 @@ fn blend_frame(
         joint_rotations: blend_poses(skeleton, from, to, eased_t),
         joint_translations: blend_translations(skeleton, from, to, eased_t),
         camera: blend_cameras(from.camera, to.camera, eased_t),
+        expressions: blend_expressions(&from.expressions, &to.expressions, eased_t),
     }
 }
 
@@ -459,6 +493,7 @@ mod tests {
             description: None,
             joints,
             camera: None,
+            expressions: HashMap::new(),
             hold_joints: false,
         }
     }
@@ -630,6 +665,7 @@ mod tests {
             name: "wave".into(),
             description: None,
             camera: None,
+            expressions: HashMap::new(),
             hold_joints: false,
             joints: {
                 let mut joints = HashMap::new();
@@ -663,6 +699,7 @@ mod tests {
             description: None,
             joints: HashMap::new(),
             camera: None,
+            expressions: HashMap::new(),
             hold_joints: false,
         };
 
@@ -750,5 +787,85 @@ mod tests {
             state.advance(&skeleton, 50);
         }
         assert!(!state.is_idle(), "looping animation should keep playing");
+    }
+
+    #[test]
+    fn blend_expressions_missing_in_to_fades_to_zero() {
+        let mut from = HashMap::new();
+        from.insert("happy".into(), 1.0);
+        from.insert("blink".into(), 0.5);
+        let to = HashMap::new();
+        let mid = blend_expressions(&from, &to, 0.5);
+        assert!((mid["happy"] - 0.5).abs() < 1e-5);
+        assert!((mid["blink"] - 0.25).abs() < 1e-5);
+        let end = blend_expressions(&from, &to, 1.0);
+        assert!(end.is_empty() || end.values().all(|v| *v < 1e-4));
+    }
+
+    #[test]
+    fn expression_hold_overlay_keeps_unlisted_weights() {
+        let skeleton = Skeleton::humanoid_default();
+        let mut from = ResolvedPose::empty();
+        from.expressions.insert("happy".into(), 0.8);
+
+        let mut blink_pose = Pose {
+            name: "blink".into(),
+            description: None,
+            joints: HashMap::new(),
+            camera: None,
+            expressions: {
+                let mut e = HashMap::new();
+                e.insert("blink".into(), 1.0);
+                e
+            },
+            hold_joints: true,
+        };
+        let _ = &mut blink_pose; // silence
+        let to = resolve_target(&blink_pose, &skeleton, &from);
+        assert!((to.expressions["happy"] - 0.8).abs() < 1e-5);
+        assert!((to.expressions["blink"] - 1.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn non_hold_pose_clears_previous_expressions_at_end() {
+        let skeleton = Skeleton::humanoid_default();
+        let mut happy = Pose {
+            name: "happy".into(),
+            description: None,
+            joints: HashMap::new(),
+            camera: None,
+            expressions: {
+                let mut e = HashMap::new();
+                e.insert("happy".into(), 1.0);
+                e
+            },
+            hold_joints: false,
+        };
+        let clear = Pose {
+            name: "clear".into(),
+            description: None,
+            joints: HashMap::new(),
+            camera: None,
+            expressions: HashMap::new(),
+            hold_joints: false,
+        };
+
+        let mut state = PlaybackState::new();
+        state.interrupt(&skeleton, PlaybackTarget::Pose(happy.clone()), 50);
+        let after_happy = state.advance(&skeleton, 50).unwrap();
+        assert!((after_happy.expressions["happy"] - 1.0).abs() < 1e-5);
+
+        state.interrupt(&skeleton, PlaybackTarget::Pose(clear), 50);
+        let after_clear = state.advance(&skeleton, 50).unwrap();
+        assert!(
+            after_clear
+                .expressions
+                .get("happy")
+                .copied()
+                .unwrap_or(0.0)
+                < 1e-4,
+            "non-hold empty expressions should fade happy out"
+        );
+        let _ = &mut happy;
     }
 }

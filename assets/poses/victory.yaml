@@ -1,10 +1,42 @@
 name: victory
 description: >
-  Both arms raised straight overhead in a cheer/victory stance. From T-pose,
-  raising uses opposite signs on each side: right_shoulder.z negative,
-  left_shoulder.z positive (see posing_guide).
+  Both arms raised overhead in a cheer — open celebrating hands (fingers spread).
+  Big happy morph. From T-pose, raise uses opposite signs: right.z negative, left.z positive.
 joints:
   right_shoulder:
     rotation_deg: { z: -80.0 }
+  right_elbow:
+    rotation_deg: { z: -12.0 }
+  right_wrist:
+    rotation_deg: { z: 8.0 }
+  right_thumb_metacarpal:
+    rotation_deg: { z: 12.0, x: 5.0 }
+  right_index_proximal:
+    rotation_deg: { z: 5.0 }
+  right_middle_proximal:
+    rotation_deg: { z: 5.0 }
+  right_ring_proximal:
+    rotation_deg: { z: 8.0 }
+  right_little_proximal:
+    rotation_deg: { z: 10.0 }
   left_shoulder:
     rotation_deg: { z: 80.0 }
+  left_elbow:
+    rotation_deg: { z: 12.0 }
+  left_wrist:
+    rotation_deg: { z: -8.0 }
+  left_thumb_metacarpal:
+    rotation_deg: { z: -12.0, x: 5.0 }
+  left_index_proximal:
+    rotation_deg: { z: 5.0 }
+  left_middle_proximal:
+    rotation_deg: { z: 5.0 }
+  left_ring_proximal:
+    rotation_deg: { z: 8.0 }
+  left_little_proximal:
+    rotation_deg: { z: 10.0 }
+  neck:
+    rotation_deg: { x: -8.0 }
+expressions:
+  happy: 1.0
+  aa: 0.35

@@ -1,15 +1,41 @@
 name: wave_return
 description: >
   Same as `wave` with the wrist flicked the other way, for the back-and-forth
-  motion in `wave_animation`.
+  motion in `wave_animation`. Same open waving hand + soft happy morph.
 joints:
   right_shoulder:
     rotation_deg: { z: -55.0, y: -28.0 }
   right_elbow:
     rotation_deg: { z: -95.0 }
   right_wrist:
-    rotation_deg: { z: -30.0 }
+    rotation_deg: { z: -30.0, y: -6.0 }
+  right_thumb_metacarpal:
+    rotation_deg: { z: 18.0, x: 8.0 }
+  right_thumb_proximal:
+    rotation_deg: { z: 15.0 }
+  right_index_proximal:
+    rotation_deg: { z: 8.0 }
+  right_index_intermediate:
+    rotation_deg: { z: 6.0 }
+  right_middle_proximal:
+    rotation_deg: { z: 10.0 }
+  right_middle_intermediate:
+    rotation_deg: { z: 8.0 }
+  right_ring_proximal:
+    rotation_deg: { z: 12.0 }
+  right_ring_intermediate:
+    rotation_deg: { z: 10.0 }
+  right_little_proximal:
+    rotation_deg: { z: 14.0 }
+  right_little_intermediate:
+    rotation_deg: { z: 12.0 }
   left_shoulder:
     rotation_deg: { z: -72.0 }
   left_elbow:
     rotation_deg: { z: -12.0 }
+  left_index_proximal:
+    rotation_deg: { z: 10.0 }
+  left_middle_proximal:
+    rotation_deg: { z: 12.0 }
+expressions:
+  happy: 0.55

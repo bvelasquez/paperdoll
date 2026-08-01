@@ -1,16 +1,55 @@
 name: peace_sign_right
 description: >
-  Right arm up in a peace sign, head tilted — kawaii vibes.
+  v2 finger exemplar: right arm up, index + middle extended, ring/little curled,
+  thumb tucked. Soft happy morph. Authoring model for hand shapes.
 joints:
   right_shoulder:
-    rotation_deg: { x: 0.0, y: 15.0, z: -88.0 }
+    rotation_deg: { y: 15.0, z: -88.0 }
   right_elbow:
-    rotation_deg: { x: 0.0, y: 0.0, z: -8.0 }
+    rotation_deg: { z: -8.0 }
+  right_wrist:
+    rotation_deg: { z: -5.0, y: 10.0 }
+  right_thumb_metacarpal:
+    rotation_deg: { x: 15.0, z: 40.0 }
+  right_thumb_proximal:
+    rotation_deg: { z: 50.0 }
+  right_thumb_distal:
+    rotation_deg: { z: 40.0 }
+  right_index_proximal:
+    rotation_deg: { z: 5.0 }
+  right_index_intermediate:
+    rotation_deg: { z: 5.0 }
+  right_index_distal:
+    rotation_deg: { z: 5.0 }
+  right_middle_proximal:
+    rotation_deg: { z: 5.0 }
+  right_middle_intermediate:
+    rotation_deg: { z: 5.0 }
+  right_middle_distal:
+    rotation_deg: { z: 5.0 }
+  right_ring_proximal:
+    rotation_deg: { z: 85.0 }
+  right_ring_intermediate:
+    rotation_deg: { z: 95.0 }
+  right_ring_distal:
+    rotation_deg: { z: 70.0 }
+  right_little_proximal:
+    rotation_deg: { z: 85.0 }
+  right_little_intermediate:
+    rotation_deg: { z: 95.0 }
+  right_little_distal:
+    rotation_deg: { z: 70.0 }
   left_shoulder:
-    rotation_deg: { x: 0.0, y: 0.0, z: -50.0 }
+    rotation_deg: { z: -50.0 }
   left_elbow:
-    rotation_deg: { x: 0.0, y: 0.0, z: -15.0 }
+    rotation_deg: { z: -15.0 }
+  left_index_proximal:
+    rotation_deg: { z: 15.0 }
+  left_middle_proximal:
+    rotation_deg: { z: 18.0 }
   neck:
-    rotation_deg: { x: 0.0, y: 0.0, z: 12.0 }
+    rotation_deg: { z: 12.0 }
   pelvis:
-    rotation_deg: { x: 0.0, y: 0.0, z: 5.0 }
+    rotation_deg: { z: 5.0 }
+expressions:
+  happy: 0.85

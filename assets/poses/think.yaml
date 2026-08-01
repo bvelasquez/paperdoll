@@ -1,14 +1,33 @@
 name: think
 description: >
-  Pensive pose: right hand up near the side of the head, head tilted toward it,
-  left arm relaxed down. Demonstrates combining shoulder y (forward/back) with
-  z (raise) plus a deep elbow bend.
+  Pensive: right hand near the temple with lightly curled fingers, head tilted.
+  Soft relaxed morph. Demonstrates shoulder y+z with a deep elbow bend.
 joints:
   right_shoulder:
     rotation_deg: { z: -48.0, y: 60.0 }
   right_elbow:
     rotation_deg: { z: -135.0 }
   right_wrist:
+    rotation_deg: { z: 45.0, y: -10.0 }
+  right_thumb_metacarpal:
+    rotation_deg: { x: 10.0, z: 25.0 }
+  right_thumb_proximal:
+    rotation_deg: { z: 28.0 }
+  right_index_proximal:
+    rotation_deg: { z: 35.0 }
+  right_index_intermediate:
+    rotation_deg: { z: 40.0 }
+  right_middle_proximal:
+    rotation_deg: { z: 42.0 }
+  right_middle_intermediate:
+    rotation_deg: { z: 48.0 }
+  right_ring_proximal:
+    rotation_deg: { z: 45.0 }
+  right_ring_intermediate:
+    rotation_deg: { z: 50.0 }
+  right_little_proximal:
+    rotation_deg: { z: 40.0 }
+  right_little_intermediate:
     rotation_deg: { z: 45.0 }
   neck:
     rotation_deg: { z: 14.0, x: 10.0 }
@@ -16,3 +35,10 @@ joints:
     rotation_deg: { z: -60.0 }
   left_elbow:
     rotation_deg: { z: -15.0 }
+  left_index_proximal:
+    rotation_deg: { z: 15.0 }
+  left_middle_proximal:
+    rotation_deg: { z: 18.0 }
+expressions:
+  relaxed: 0.7
+  ih: 0.15

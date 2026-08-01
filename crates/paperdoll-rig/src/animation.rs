@@ -52,9 +52,13 @@ impl Easing {
 /// appear alongside a pose/joints reference (orbit while holding a pose) or alone
 /// (camera-only move; joints stay wherever they are via an empty pose).
 ///
-/// `hold: true` makes the keyframe a sparse OVERLAY: only its listed joints move,
-/// and every unlisted joint keeps its current value instead of resetting to rest —
-/// this is how a blink or a gaze shift can ride on top of an ongoing body pose.
+/// Optional `expressions` overlay VRM morph weights onto the resolved pose (or alone
+/// with `hold: true` for a face-only beat such as a blink).
+///
+/// `hold: true` makes the keyframe a sparse OVERLAY: only its listed joints /
+/// expressions move, and every unlisted joint/expression keeps its current value
+/// instead of resetting to rest / zero — this is how a blink can ride on top of an
+/// ongoing body pose.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KeyframeSpec {
     #[serde(default)]
@@ -63,6 +67,8 @@ pub struct KeyframeSpec {
     pub joints: Option<HashMap<String, JointTarget>>,
     #[serde(default)]
     pub camera: Option<CameraTarget>,
+    #[serde(default)]
+    pub expressions: Option<HashMap<String, f32>>,
     #[serde(default)]
     pub hold: Option<bool>,
     #[serde(default)]

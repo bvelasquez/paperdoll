@@ -1014,6 +1014,7 @@ pub fn advance_playback(
     camera_entity: Res<ChoreographyCameraEntity>,
     live_state: Res<crate::live_state::LiveState>,
     apply_mode: Res<PoseApplyMode>,
+    shared_expressions: Res<crate::v2_expressions::SharedExpressionState>,
     mut playback: ResMut<RigPlayback>,
     mut idle: ResMut<IdleRevert>,
     mut transforms: Query<&mut Transform>,
@@ -1069,6 +1070,8 @@ pub fn advance_playback(
         *cam_tf = Transform::from_translation(Vec3::new(eye.x, eye.y, eye.z))
             .looking_at(Vec3::new(look_at.x, look_at.y, look_at.z), Vec3::Y);
     }
+    // Drive VRM face morphs from the same blend as joints/camera (v2).
+    shared_expressions.apply_playback_weights(&snapshot.expressions);
     if idle.expect_return_after_animation && playback.0.is_idle() {
         idle.pending_after_animation = true;
         idle.expect_return_after_animation = false;

@@ -1,40 +1,63 @@
 name: hero_intro
 description: >
-  Wide establishing shot on idle, push-in to a wave, then settle — a short
-  cinematic greeting for demos.
+  Cinematic greeting template: wide establishing shot → push-in → wave cycle →
+  settle. Camera choreography + pose refs; expressions come from wave poses.
 loop: false
 keyframes:
   - pose: idle
     duration_ms: 0
     easing: linear
     camera:
-      yaw_deg: 45.0
+      yaw_deg: 48.0
       pitch_deg: 18.0
-      distance: 6.5
+      distance: 6.8
       look_at: [0.0, 0.85, 0.0]
-  - pose: idle
-    duration_ms: 800
-    easing: ease_in_out
-    camera:
-      yaw_deg: 30.0
-      pitch_deg: 10.0
-      distance: 4.2
-  - pose: wave
-    duration_ms: 600
-    easing: ease_out
-    camera:
-      yaw_deg: 15.0
-      pitch_deg: 5.0
-      distance: 3.4
-      look_at: [0.15, 1.15, 0.0]
-  - pose: wave_return
-    duration_ms: 280
-    easing: ease_in_out
-  - pose: wave
-    duration_ms: 280
-    easing: ease_in_out
+
   - pose: idle
     duration_ms: 700
+    easing: ease_in_out
+    camera:
+      yaw_deg: 32.0
+      pitch_deg: 11.0
+      distance: 4.4
+      look_at: [0.0, 0.9, 0.0]
+
+  - pose: wave
+    duration_ms: 520
+    easing: ease_out
+    camera:
+      yaw_deg: 14.0
+      pitch_deg: 5.0
+      distance: 3.2
+      look_at: [0.15, 1.2, 0.0]
+
+  - pose: wave_return
+    duration_ms: 260
+    easing: ease_in_out
+
+  - pose: wave
+    duration_ms: 260
+    easing: ease_in_out
+
+  - expressions:
+      blink: 1.0
+    hold: true
+    duration_ms: 80
+    easing: step
+
+  - expressions:
+      blink: 0.0
+      happy: 0.55
+    hold: true
+    duration_ms: 100
+    easing: ease_out
+
+  - pose: wave_return
+    duration_ms: 240
+    easing: ease_in_out
+
+  - pose: idle
+    duration_ms: 650
     easing: ease_in_out
     camera:
       yaw_deg: 35.5

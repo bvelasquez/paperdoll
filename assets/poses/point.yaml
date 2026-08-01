@@ -1,16 +1,52 @@
 name: point
 description: >
-  Right arm extended forward toward the camera, left arm down, slight torso yaw.
-  Best read with a frontal camera (yaw near 0) — see the `point_hero` animation.
+  Right arm extended forward toward the camera with index finger pointing;
+  other digits curled. Frontal camera frame — pair with `point_hero`.
 joints:
   right_shoulder:
     rotation_deg: { y: -75.0, z: -8.0 }
   right_elbow:
     rotation_deg: { z: -8.0 }
+  right_wrist:
+    rotation_deg: { z: -5.0, y: 5.0 }
+  right_thumb_metacarpal:
+    rotation_deg: { x: 18.0, z: 38.0 }
+  right_thumb_proximal:
+    rotation_deg: { z: 45.0 }
+  right_thumb_distal:
+    rotation_deg: { z: 35.0 }
+  right_index_proximal:
+    rotation_deg: { z: 5.0 }
+  right_index_intermediate:
+    rotation_deg: { z: 5.0 }
+  right_index_distal:
+    rotation_deg: { z: 5.0 }
+  right_middle_proximal:
+    rotation_deg: { z: 82.0 }
+  right_middle_intermediate:
+    rotation_deg: { z: 90.0 }
+  right_middle_distal:
+    rotation_deg: { z: 68.0 }
+  right_ring_proximal:
+    rotation_deg: { z: 85.0 }
+  right_ring_intermediate:
+    rotation_deg: { z: 92.0 }
+  right_ring_distal:
+    rotation_deg: { z: 70.0 }
+  right_little_proximal:
+    rotation_deg: { z: 80.0 }
+  right_little_intermediate:
+    rotation_deg: { z: 88.0 }
+  right_little_distal:
+    rotation_deg: { z: 65.0 }
   left_shoulder:
     rotation_deg: { z: -55.0 }
   left_elbow:
     rotation_deg: { z: -18.0 }
+  left_index_proximal:
+    rotation_deg: { z: 18.0 }
+  left_middle_proximal:
+    rotation_deg: { z: 20.0 }
   chest:
     rotation_deg: { y: -12.0 }
   neck:
@@ -20,3 +56,6 @@ camera:
   pitch_deg: 6.0
   distance: 3.6
   look_at: [0.0, 1.0, 0.0]
+expressions:
+  ee: 0.2
+  happy: 0.35

@@ -32,10 +32,18 @@ pub fn editor_apply_preview(
     idle.hold_for_editor(time.elapsed_secs());
 
     let poses_guard = poses.0.read().unwrap();
-    if session.tab == EditorTab::Pose && session.pose.draft.joints.is_empty() {
+    if session.tab == EditorTab::Pose
+        && session.pose.draft.joints.is_empty()
+        && !session.pose.auto_fill_done
+    {
         if let Some(idle_pose) = poses_guard.get("idle") {
+            let existing: std::collections::HashSet<String> =
+                poses_guard.keys().cloned().collect();
             session.pose.draft = idle_pose.clone();
-            session.pose.draft.name = "new_pose".into();
+            session.pose.draft.name =
+                crate::editor::session::unique_name("new_pose", &existing);
+            session.pose.auto_fill_done = true;
+            session.pose.checkpoint();
         }
     }
 
@@ -45,7 +53,7 @@ pub fn editor_apply_preview(
             match expand_pose_for_preview(&session.pose.draft, &skeleton.0) {
                 Ok(resolved) => resolved,
                 Err(e) => {
-                    session.status = format!("pose: {e}");
+                    session.error(format!("pose: {e}"));
                     return;
                 }
             }
@@ -57,7 +65,7 @@ pub fn editor_apply_preview(
             ) {
                 Ok(a) => a,
                 Err(e) => {
-                    session.status = format!("animation: {e}");
+                    session.error(format!("animation: {e}"));
                     session.animation.playing = false;
                     session.animation.playhead_ms = 0;
                     return;

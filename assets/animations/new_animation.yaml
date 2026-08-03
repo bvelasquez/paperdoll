@@ -14,7 +14,7 @@ keyframes:
   hold: null
   duration_ms: 2000
   easing: ease_in_out
-- pose: new_pose
+- pose: raised_right_hand
   joints: null
   camera: null
   expressions: null

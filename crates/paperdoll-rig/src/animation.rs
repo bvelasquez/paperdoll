@@ -59,7 +59,7 @@ impl Easing {
 /// expressions move, and every unlisted joint/expression keeps its current value
 /// instead of resetting to rest / zero — this is how a blink can ride on top of an
 /// ongoing body pose.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct KeyframeSpec {
     #[serde(default)]
     pub pose: Option<String>,
@@ -79,7 +79,7 @@ pub struct KeyframeSpec {
 
 /// The raw shape of an `assets/animations/*.yaml` file, before pose references are
 /// resolved against a loaded pose registry.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AnimationFile {
     pub name: String,
     #[serde(default)]

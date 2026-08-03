@@ -1,6 +1,6 @@
 use bevy::prelude::Resource;
 use paperdoll_rig::{AnimationFile, EulerDeg, Pose};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet, VecDeque};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum EditorTab {
@@ -9,13 +9,86 @@ pub enum EditorTab {
     Animation,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StatusKind {
+    Info,
+    Success,
+    Error,
+}
+
+/// A destructive or ambiguous action waiting on the user's confirmation dialog.
+#[derive(Debug, Clone)]
+pub enum Confirm {
+    /// About to throw away unsaved draft edits (New / Load / close editor).
+    DiscardChanges { action: PendingAction },
+    /// Draft name already belongs to a *different* saved pose — saving would clobber it.
+    OverwritePose { name: String },
+    OverwriteAnimation { name: String },
+    DeletePose { name: String },
+    DeleteAnimation { name: String },
+    /// "Capture scene" replaces every joint in the pose draft.
+    CaptureScene,
+    ClearAllJoints,
+}
+
+#[derive(Debug, Clone)]
+pub enum PendingAction {
+    NewPose,
+    LoadPose(String),
+    NewAnimation,
+    LoadAnimation(String),
+    CloseEditor,
+}
+
+impl Confirm {
+    pub fn prompt(&self) -> String {
+        match self {
+            Confirm::DiscardChanges { .. } => {
+                "Discard unsaved changes to the current draft?".into()
+            }
+            Confirm::OverwritePose { name } => format!(
+                "'{name}' already exists in the library and you didn't load it from there. Overwrite it?"
+            ),
+            Confirm::OverwriteAnimation { name } => format!(
+                "'{name}' already exists in the library and you didn't load it from there. Overwrite it?"
+            ),
+            Confirm::DeletePose { name } => {
+                format!("Delete pose '{name}' (removes the YAML file from assets/poses)?")
+            }
+            Confirm::DeleteAnimation { name } => format!(
+                "Delete animation '{name}' (removes the YAML file from assets/animations)?"
+            ),
+            Confirm::CaptureScene => {
+                "Replace ALL joints in the pose draft with the live rig state?".into()
+            }
+            Confirm::ClearAllJoints => "Clear every joint edit from the pose draft?".into(),
+        }
+    }
+
+    pub fn confirm_label(&self) -> &'static str {
+        match self {
+            Confirm::DiscardChanges { .. } => "Discard",
+            Confirm::OverwritePose { .. } | Confirm::OverwriteAnimation { .. } => "Overwrite",
+            Confirm::DeletePose { .. } | Confirm::DeleteAnimation { .. } => "Delete",
+            Confirm::CaptureScene => "Capture",
+            Confirm::ClearAllJoints => "Clear",
+        }
+    }
+}
+
 #[derive(Resource)]
 pub struct EditorSession {
     pub open: bool,
     pub tab: EditorTab,
     pub pose: PoseEditorState,
     pub animation: AnimationEditorState,
+    /// Latest status line; colored by [`Self::status_kind`].
     pub status: String,
+    pub status_kind: StatusKind,
+    /// Previous messages, most recent last (capped).
+    pub status_history: VecDeque<String>,
+    pub pending_confirm: Option<Confirm>,
+    pub show_help: bool,
 }
 
 impl Default for EditorSession {
@@ -26,19 +99,105 @@ impl Default for EditorSession {
             pose: PoseEditorState::default(),
             animation: AnimationEditorState::default(),
             status: "Play mode — F2 opens the pose/animation editor.".into(),
+            status_kind: StatusKind::Info,
+            status_history: VecDeque::new(),
+            pending_confirm: None,
+            show_help: false,
         }
     }
+}
+
+impl EditorSession {
+    pub fn set_status(&mut self, kind: StatusKind, msg: impl Into<String>) {
+        let msg = msg.into();
+        if !self.status.is_empty() && self.status != msg {
+            self.status_history.push_back(std::mem::replace(&mut self.status, msg));
+        } else {
+            self.status = msg;
+        }
+        while self.status_history.len() > 2 {
+            self.status_history.pop_front();
+        }
+        self.status_kind = kind;
+    }
+
+    pub fn info(&mut self, msg: impl Into<String>) {
+        self.set_status(StatusKind::Info, msg);
+    }
+
+    pub fn success(&mut self, msg: impl Into<String>) {
+        self.set_status(StatusKind::Success, msg);
+    }
+
+    pub fn error(&mut self, msg: impl Into<String>) {
+        self.set_status(StatusKind::Error, msg);
+    }
+
+    /// Unsaved edits on the draft of the currently visible tab.
+    pub fn active_dirty(&self) -> bool {
+        match self.tab {
+            EditorTab::Pose => self.pose.dirty(),
+            EditorTab::Animation => self.animation.dirty(),
+        }
+    }
+
+    /// Guard a draft-replacing action behind a discard confirmation when dirty.
+    /// Returns true if the caller should run the action now, false if a confirm
+    /// dialog was queued instead.
+    pub fn guard_dirty(&mut self, action: PendingAction) -> bool {
+        if self.active_dirty() {
+            self.pending_confirm = Some(Confirm::DiscardChanges { action });
+            false
+        } else {
+            true
+        }
+    }
+}
+
+/// Pick `base`, or `base_2`, `base_3`, … when the name is already taken, so a fresh
+/// draft can never silently collide with an existing library entry.
+pub fn unique_name(base: &str, existing: &HashSet<String>) -> String {
+    if !existing.contains(base) {
+        return base.to_string();
+    }
+    for n in 2..1000 {
+        let candidate = format!("{base}_{n}");
+        if !existing.contains(&candidate) {
+            return candidate;
+        }
+    }
+    format!("{base}_{}", std::process::id())
 }
 
 #[derive(Debug, Clone)]
 pub struct PoseEditorState {
     pub draft: Pose,
+    /// Last checkpoint (created / loaded / saved). `dirty()` compares against this.
+    pub checkpoint: Option<Pose>,
+    /// Library name the draft was loaded from (None = never loaded/saved).
+    pub loaded_name: Option<String>,
     pub selected_joint: Option<String>,
     pub joint_filter: String,
+    /// Only list joints already present in the draft.
+    pub modified_only: bool,
     pub show_camera: bool,
     pub show_expressions: bool,
     /// When true, editing a left/right pair mirrors euler to the counterpart joint.
     pub symmetrical: bool,
+    /// Set once the empty default draft has been auto-filled from `idle` so a
+    /// deliberate "clear all joints" doesn't get silently refilled.
+    pub auto_fill_done: bool,
+}
+
+impl PoseEditorState {
+    pub fn dirty(&self) -> bool {
+        self.checkpoint.as_ref() != Some(&self.draft)
+    }
+
+    /// Mark the current draft as the clean baseline.
+    pub fn checkpoint(&mut self) {
+        self.checkpoint = Some(self.draft.clone());
+    }
 }
 
 impl Default for PoseEditorState {
@@ -52,11 +211,15 @@ impl Default for PoseEditorState {
                 expressions: HashMap::new(),
                 hold_joints: false,
             },
+            checkpoint: None,
+            loaded_name: None,
             selected_joint: None,
             joint_filter: String::new(),
+            modified_only: false,
             show_camera: false,
             show_expressions: false,
             symmetrical: false,
+            auto_fill_done: false,
         }
     }
 }
@@ -64,10 +227,22 @@ impl Default for PoseEditorState {
 #[derive(Debug, Clone)]
 pub struct AnimationEditorState {
     pub draft: AnimationFile,
+    pub checkpoint: Option<AnimationFile>,
+    pub loaded_name: Option<String>,
     pub playhead_ms: u32,
     pub playing: bool,
     pub loop_playback: bool,
     pub selected_keyframe: usize,
+}
+
+impl AnimationEditorState {
+    pub fn dirty(&self) -> bool {
+        self.checkpoint.as_ref() != Some(&self.draft)
+    }
+
+    pub fn checkpoint(&mut self) {
+        self.checkpoint = Some(self.draft.clone());
+    }
 }
 
 impl Default for AnimationEditorState {
@@ -89,6 +264,8 @@ impl Default for AnimationEditorState {
                     easing: paperdoll_rig::Easing::EaseInOut,
                 }],
             },
+            checkpoint: None,
+            loaded_name: None,
             playhead_ms: 0,
             playing: false,
             loop_playback: false,

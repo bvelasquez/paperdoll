@@ -1,0 +1,30 @@
+name: wink_at_me
+description: null
+loop: false
+play_automatically: true
+keyframes:
+- pose: idle
+  joints: null
+  camera:
+    yaw_deg: -10.0
+    pitch_deg: 15.0
+    distance: null
+    look_at: null
+  expressions: {}
+  hold: null
+  duration_ms: 400
+  easing: ease_in
+- pose: wink_at_me
+  joints: null
+  camera: null
+  expressions: null
+  hold: null
+  duration_ms: 500
+  easing: ease_in_out
+- pose: idle
+  joints: null
+  camera: null
+  expressions: null
+  hold: null
+  duration_ms: 500
+  easing: ease_in_out

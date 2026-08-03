@@ -1,8 +1,8 @@
-name: new_pose
+name: raised_right_hand
 description: >
   v2 hand-verify reference: raised right arm, fist shape, and stage camera
-  (yaw 50°, pitch 4°, distance 1.2). Use POST /pose new_pose or editor Load for
-  framing hand presets.
+  (yaw 50°, pitch 4°, distance 1.2). Use POST /pose raised_right_hand or the
+  editor's "Apply hand-shot camera" for framing hand presets.
 joints:
   right_little_intermediate:
     rotation_deg:

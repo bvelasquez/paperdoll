@@ -1,18 +1,120 @@
-name: idle
+name: wink_at_me
 description: |
   Relaxed upright stance: torso erect, right hand on hip, left arm down. Both feet planted. IdleRevert target after inactivity — expressions empty so leftover VRM morphs fade to zero on revert.
 joints:
-  neck:
-    rotation_deg:
-      x: 0.0
-      y: 0.0
-      z: 10.0
-    translation: null
   right_ring_distal:
     rotation_deg:
       x: 0.0
       y: 0.0
       z: 42.0
+    translation: null
+  right_index_proximal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 55.0
+    translation: null
+  right_middle_distal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 42.0
+    translation: null
+  right_thumb_metacarpal:
+    rotation_deg:
+      x: 12.0
+      y: 0.0
+      z: 28.000006
+    translation: null
+  left_shoulder:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: -40.0
+    translation: null
+  right_thumb_proximal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 30.000002
+    translation: null
+  right_little_distal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 38.0
+    translation: null
+  right_shoulder:
+    rotation_deg:
+      x: -10.0
+      y: 0.0
+      z: 20.0
+    translation: null
+  neck:
+    rotation_deg:
+      x: -20.000002
+      y: -25.0
+      z: 4.710175e-7
+    translation: null
+  left_middle_proximal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 14.0
+    translation: null
+  right_ring_intermediate:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 65.0
+    translation: null
+  left_wrist:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 5.0
+    translation: null
+  left_ring_proximal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 14.0
+    translation: null
+  right_little_proximal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 52.0
+    translation: null
+  right_index_distal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 39.999992
+    translation: null
+  right_wrist:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: -8.000002
+    translation: null
+  right_index_intermediate:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 60.000004
+    translation: null
+  jaw:
+    rotation_deg:
+      x: 10.000001
+      y: 15.000004
+      z: 10.000001
+    translation: null
+  left_elbow:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: -60.0
     translation: null
   right_ring_proximal:
     rotation_deg:
@@ -26,131 +128,11 @@ joints:
       y: 0.0
       z: 58.0
     translation: null
-  right_little_distal:
-    rotation_deg:
-      x: 0.0
-      y: 0.0
-      z: 38.0
-    translation: null
-  right_index_proximal:
-    rotation_deg:
-      x: 0.0
-      y: 0.0
-      z: 55.0
-    translation: null
-  right_shoulder:
-    rotation_deg:
-      x: 0.0
-      y: 0.0
-      z: 42.0
-    translation: null
-  right_thumb_metacarpal:
-    rotation_deg:
-      x: 12.0
-      y: 0.0
-      z: 28.0
-    translation: null
-  right_elbow:
-    rotation_deg:
-      x: 0.0
-      y: 0.0
-      z: 95.0
-    translation: null
-  right_thumb_proximal:
-    rotation_deg:
-      x: 0.0
-      y: 0.0
-      z: 30.0
-    translation: null
-  right_thumb_distal:
-    rotation_deg:
-      x: 0.0
-      y: 0.0
-      z: 25.0
-    translation: null
-  right_ring_intermediate:
-    rotation_deg:
-      x: 0.0
-      y: 0.0
-      z: 65.0
-    translation: null
-  right_index_intermediate:
-    rotation_deg:
-      x: 0.0
-      y: 0.0
-      z: 60.0
-    translation: null
-  left_shoulder:
-    rotation_deg:
-      x: 0.0
-      y: 0.0
-      z: -78.0
-    translation: null
-  right_wrist:
-    rotation_deg:
-      x: 0.0
-      y: 0.0
-      z: -8.0
-    translation: null
-  left_elbow:
-    rotation_deg:
-      x: 0.0
-      y: 0.0
-      z: -10.0
-    translation: null
-  left_wrist:
-    rotation_deg:
-      x: 0.0
-      y: 0.0
-      z: 5.0
-    translation: null
   left_index_proximal:
     rotation_deg:
       x: 0.0
       y: 0.0
       z: 12.0
-    translation: null
-  right_middle_distal:
-    rotation_deg:
-      x: 0.0
-      y: 0.0
-      z: 42.0
-    translation: null
-  left_middle_proximal:
-    rotation_deg:
-      x: 0.0
-      y: 0.0
-      z: 14.0
-    translation: null
-  right_little_proximal:
-    rotation_deg:
-      x: 0.0
-      y: 0.0
-      z: 52.0
-    translation: null
-  left_ring_proximal:
-    rotation_deg:
-      x: 0.0
-      y: 0.0
-      z: 14.0
-    translation: null
-  left_little_proximal:
-    rotation_deg:
-      x: 0.0
-      y: 0.0
-      z: 10.0
-    translation: null
-  head:
-    rotation_deg:
-      x: 0.0
-      y: 0.0
-      z: -10.0
-    translation: null
-  right_middle_intermediate:
-    rotation_deg:
-      x: 0.0
-      y: 0.0
-      z: 65.0
     translation: null
   right_little_intermediate:
     rotation_deg:
@@ -158,18 +140,50 @@ joints:
       y: 0.0
       z: 58.0
     translation: null
-  right_index_distal:
+  left_eye:
     rotation_deg:
       x: 0.0
       y: 0.0
-      z: 40.0
+      z: 10.0
+    translation: null
+  right_thumb_distal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 25.000004
+    translation: null
+  right_middle_intermediate:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 65.0
+    translation: null
+  head:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: -20.0
+    translation: null
+  right_elbow:
+    rotation_deg:
+      x: -180.0
+      y: 20.0
+      z: 100.0
+    translation: null
+  left_little_proximal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 10.0
     translation: null
 camera:
-  yaw_deg: -10.0
-  pitch_deg: 12.0
-  distance: 3.5
+  yaw_deg: -20.0
+  pitch_deg: 25.0
+  distance: 3.2
   look_at:
   - 0.0
   - 0.9
   - 0.0
-expressions: {}
+expressions:
+  blinkLeft: 1.0
+  happy: 0.4

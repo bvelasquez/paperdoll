@@ -18,7 +18,7 @@ fn repo_root() -> &'static Path {
 fn repo_pose_and_animation_assets_load_and_resolve() {
     let root = repo_root();
     let poses = load_poses_from_dir(&root.join("assets/poses")).expect("poses should load");
-    assert_eq!(poses.len(), 24);
+    assert_eq!(poses.len(), 25);
     assert!(poses.contains_key("t_pose"));
     assert!(poses.contains_key("wave"));
     assert!(poses.contains_key("wave_return"));
@@ -35,7 +35,7 @@ fn repo_pose_and_animation_assets_load_and_resolve() {
 
     let animations = load_animations_from_dir(&root.join("assets/animations"), &poses)
         .expect("animations should load and resolve pose references");
-    assert_eq!(animations.len(), 13);
+    assert_eq!(animations.len(), 14);
     assert!(animations.contains_key("vrma_clapping"));
     assert!(animations.contains_key("vrma_jump"));
     assert!(animations.contains_key("vrma_goodbye"));

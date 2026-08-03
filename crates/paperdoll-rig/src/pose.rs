@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Euler rotation in degrees, the human-authorable form used in pose YAML files.
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
 pub struct EulerDeg {
     #[serde(default)]
     pub x: f32,
@@ -37,7 +37,7 @@ impl EulerDeg {
 
 /// A single joint's authored target within a [`Pose`]. Either field may be omitted;
 /// an omitted field means "leave this joint's rest value alone."
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct JointTarget {
     #[serde(default)]
     pub rotation_deg: Option<EulerDeg>,
@@ -59,7 +59,7 @@ pub struct JointTarget {
 /// `hold_joints` is set by the animation resolver for camera-only / expression-only
 /// keyframes so an empty `joints` map means "keep the current body" rather than
 /// "reset to T-pose".
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Pose {
     pub name: String,
     #[serde(default)]

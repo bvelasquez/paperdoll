@@ -12,16 +12,18 @@ pub enum HandPreset {
     Point,
     HighFive,
     Peace,
+    ThumbsUp,
 }
 
 impl HandPreset {
-    pub const ALL: [HandPreset; 6] = [
+    pub const ALL: [HandPreset; 7] = [
         HandPreset::Relaxed,
         HandPreset::Fist,
         HandPreset::Open,
         HandPreset::Point,
         HandPreset::HighFive,
         HandPreset::Peace,
+        HandPreset::ThumbsUp,
     ];
 
     pub fn label(self) -> &'static str {
@@ -32,6 +34,7 @@ impl HandPreset {
             HandPreset::Point => "point",
             HandPreset::HighFive => "high five",
             HandPreset::Peace => "peace",
+            HandPreset::ThumbsUp => "thumbs up",
         }
     }
 
@@ -43,6 +46,7 @@ impl HandPreset {
             HandPreset::Point => 4,
             HandPreset::HighFive => 5,
             HandPreset::Peace => 6,
+            HandPreset::ThumbsUp => 7,
         }
     }
 }
@@ -53,7 +57,8 @@ pub fn preset_from_shortcut(digit: u8) -> Option<HandPreset> {
         .find(|p| p.shortcut_index() == digit)
 }
 
-/// Close-up orbit for a raised right hand; prefers [`new_pose`] camera when loaded.
+/// Close-up orbit for a raised right hand; prefers the [`HAND_SHOT_POSE_NAME`] pose's
+/// camera block when that pose is loaded.
 pub fn raised_right_hand_shot_camera() -> CameraTarget {
     CameraTarget {
         yaw_deg: Some(50.0),
@@ -63,7 +68,9 @@ pub fn raised_right_hand_shot_camera() -> CameraTarget {
     }
 }
 
-pub const HAND_SHOT_POSE_NAME: &str = "new_pose";
+/// Reference pose (`assets/poses/raised_right_hand.yaml`) used for the hand-shot
+/// camera preset and as the fist-shape source for the right hand.
+pub const HAND_SHOT_POSE_NAME: &str = "raised_right_hand";
 
 fn rot(x: f32, y: f32, z: f32) -> JointTarget {
     JointTarget {
@@ -164,6 +171,29 @@ fn finger_only_peace_right() -> HashMap<String, JointTarget> {
     ])
 }
 
+/// Four fingers curled like a fist, thumb extended upward. Verified visually via
+/// the HTTP screenshot loop: negative y on the metacarpal fans the thumb up off the
+/// fist (positive x wraps it across the palm, negative x swings it down).
+fn finger_only_thumbs_up_right() -> HashMap<String, JointTarget> {
+    HashMap::from([
+        ("right_thumb_metacarpal".into(), rot(0.0, -30.0, -30.0)),
+        ("right_thumb_proximal".into(), rot(0.0, -5.0, -15.0)),
+        ("right_thumb_distal".into(), rot(0.0, 0.0, -5.0)),
+        ("right_index_proximal".into(), rot(0.0, 0.0, 80.0)),
+        ("right_index_intermediate".into(), rot(0.0, 0.0, 90.0)),
+        ("right_index_distal".into(), rot(0.0, 0.0, 70.0)),
+        ("right_middle_proximal".into(), rot(0.0, 0.0, 85.0)),
+        ("right_middle_intermediate".into(), rot(0.0, 0.0, 95.0)),
+        ("right_middle_distal".into(), rot(0.0, 0.0, 70.0)),
+        ("right_ring_proximal".into(), rot(0.0, 0.0, 85.0)),
+        ("right_ring_intermediate".into(), rot(0.0, 0.0, 95.0)),
+        ("right_ring_distal".into(), rot(0.0, 0.0, 70.0)),
+        ("right_little_proximal".into(), rot(0.0, 0.0, 80.0)),
+        ("right_little_intermediate".into(), rot(0.0, 0.0, 90.0)),
+        ("right_little_distal".into(), rot(0.0, 0.0, 70.0)),
+    ])
+}
+
 fn finger_only_open_right() -> HashMap<String, JointTarget> {
     HashMap::from([
         ("right_thumb_metacarpal".into(), rot(0.0, 0.0, 10.0)),
@@ -236,6 +266,7 @@ fn preset_joints_for_side(preset: HandPreset, side: BodySide) -> Option<HashMap<
         HandPreset::Point => finger_only_point_right(),
         HandPreset::HighFive => finger_only_high_five_right(),
         HandPreset::Peace => finger_only_peace_right(),
+        HandPreset::ThumbsUp => finger_only_thumbs_up_right(),
     };
     Some(remap_side(right, side))
 }
@@ -271,7 +302,7 @@ fn joint_on_side_fingers(side: BodySide, name: &str) -> bool {
         .any(|s| rest == *s || rest.starts_with(&format!("{s}_")))
 }
 
-/// Copy finger-chain joints for one side from a reference pose (e.g. `new_pose`).
+/// Copy finger-chain joints for one side from a reference pose (e.g. `raised_right_hand`).
 pub fn finger_joints_from_pose(source: &Pose, side: BodySide) -> HashMap<String, JointTarget> {
     source
         .joints

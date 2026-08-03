@@ -5,9 +5,11 @@
 
 pub mod animation;
 pub mod camera;
+pub mod demo_motions;
 pub mod interpolation;
 pub mod pose;
 pub mod skeleton;
+pub mod vrma;
 pub mod yaml;
 
 pub use animation::{Animation, AnimationFile, Easing, Keyframe, KeyframeSpec};
@@ -20,4 +22,13 @@ pub use interpolation::{
 };
 pub use pose::{EulerDeg, JointTarget, Pose, PoseError, ResolvedPose};
 pub use skeleton::{Joint, JointId, Skeleton, SkeletonBuilder};
-pub use yaml::{load_animations_from_dir, load_poses_from_dir, resolve_animation, YamlLoadError};
+pub use demo_motions::{DemoMotion, DEMO_MOTIONS, DEMO_VRMA_BASE_URL};
+pub use vrma::{
+    import_vrma_from_bytes, import_vrma_from_path, VrmaImportConfig, VrmaImportError,
+    VrmaImportResult,
+};
+pub use yaml::{
+    animation_to_file, animation_yaml_path, load_animation_file, load_animations_from_dir,
+    load_poses_from_dir, pose_yaml_path, resolve_animation, sanitize_asset_filename,
+    write_animation_yaml, write_pose_yaml, YamlLoadError, YamlWriteError,
+};

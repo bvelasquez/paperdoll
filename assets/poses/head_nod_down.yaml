@@ -1,0 +1,31 @@
+name: head_nod_down
+description: >
+  Chin tucks (neck +x) with a soft knee dip for bounce. Keyframe for say_yes.
+joints:
+  neck:
+    rotation_deg: { x: 28.0 }
+  left_shoulder:
+    rotation_deg: { z: -58.0 }
+  right_shoulder:
+    rotation_deg: { z: 58.0 }
+  left_elbow:
+    rotation_deg: { z: -12.0 }
+  right_elbow:
+    rotation_deg: { z: 12.0 }
+  left_hip:
+    rotation_deg: { x: -6.0 }
+  right_hip:
+    rotation_deg: { x: -6.0 }
+  left_knee:
+    rotation_deg: { x: 12.0 }
+  right_knee:
+    rotation_deg: { x: 12.0 }
+  spine:
+    rotation_deg: { x: 6.0 }
+camera:
+  yaw_deg: 12.0
+  pitch_deg: 3.0
+  distance: 2.0
+  look_at: [0.0, 1.28, 0.0]
+expressions:
+  happy: 0.5

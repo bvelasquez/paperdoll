@@ -1,59 +1,84 @@
 name: point_hero
-description: >
-  Camera push-in template: establish → frontal point close-up → hold with a
-  blink → pull back. Point pose carries the finger shape + mild expression.
+description: |
+  Camera push-in template: establish → frontal point close-up → hold with a blink → pull back. Point pose carries the finger shape + mild expression.
 loop: false
+play_automatically: true
 keyframes:
-  - pose: idle
-    duration_ms: 280
-    easing: ease_out
-    camera:
-      yaw_deg: 40.0
-      pitch_deg: 12.0
-      distance: 5.2
-      look_at: [0.0, 0.9, 0.0]
-
-  - pose: hands_on_hips
-    duration_ms: 350
-    easing: ease_in_out
-    camera:
-      yaw_deg: 22.0
-      pitch_deg: 8.0
-      distance: 4.0
-
-  - pose: point
-    duration_ms: 650
-    easing: ease_out
-    camera:
-      yaw_deg: 0.0
-      pitch_deg: 4.0
-      distance: 2.85
-      look_at: [0.0, 1.08, 0.0]
-
-  - expressions:
-      blink: 0.85
-    hold: true
-    duration_ms: 90
-    easing: step
-
-  - expressions:
-      blink: 0.0
-      happy: 0.4
-      ee: 0.2
-    hold: true
-    duration_ms: 700
-    easing: ease_out
-    camera:
-      yaw_deg: -4.0
-      pitch_deg: 3.0
-      distance: 2.55
-      look_at: [0.0, 1.1, 0.0]
-
-  - pose: idle
-    duration_ms: 650
-    easing: ease_in_out
-    camera:
-      yaw_deg: 35.5
-      pitch_deg: 9.2
-      distance: 4.36
-      look_at: [0.0, 0.9, 0.0]
+- pose: idle
+  joints: null
+  camera:
+    yaw_deg: 40.0
+    pitch_deg: 12.0
+    distance: 5.2
+    look_at:
+    - 0.0
+    - 0.9
+    - 0.0
+  expressions: null
+  hold: null
+  duration_ms: 280
+  easing: ease_out
+- pose: hands_on_hips
+  joints: null
+  camera:
+    yaw_deg: 22.0
+    pitch_deg: 8.0
+    distance: 4.0
+    look_at: null
+  expressions: null
+  hold: null
+  duration_ms: 350
+  easing: ease_in_out
+- pose: point
+  joints: null
+  camera:
+    yaw_deg: 0.0
+    pitch_deg: 4.0
+    distance: 2.85
+    look_at:
+    - 0.0
+    - 1.08
+    - 0.0
+  expressions: null
+  hold: null
+  duration_ms: 650
+  easing: ease_out
+- pose: null
+  joints: null
+  camera: null
+  expressions:
+    blink: 0.85
+  hold: true
+  duration_ms: 90
+  easing: step
+- pose: null
+  joints: null
+  camera:
+    yaw_deg: -4.0
+    pitch_deg: 3.0
+    distance: 2.55
+    look_at:
+    - 0.0
+    - 1.1
+    - 0.0
+  expressions:
+    happy: 0.4
+    blink: 0.0
+    ee: 0.2
+  hold: true
+  duration_ms: 700
+  easing: ease_out
+- pose: idle
+  joints: null
+  camera:
+    yaw_deg: 35.5
+    pitch_deg: 9.2
+    distance: 4.36
+    look_at:
+    - 0.0
+    - 0.9
+    - 0.0
+  expressions: null
+  hold: null
+  duration_ms: 650
+  easing: ease_in_out

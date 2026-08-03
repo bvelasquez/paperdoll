@@ -2,13 +2,14 @@ name: point
 description: >
   Right arm extended forward toward the camera with index finger pointing;
   other digits curled. Frontal camera frame — pair with `point_hero`.
+  Shoulder y is POSITIVE so the arm swings forward (negative y points behind).
 joints:
   right_shoulder:
-    rotation_deg: { y: -75.0, z: -8.0 }
+    rotation_deg: { y: 75.0, z: -12.0 }
   right_elbow:
-    rotation_deg: { z: -8.0 }
+    rotation_deg: { z: 5.0 }
   right_wrist:
-    rotation_deg: { z: -5.0, y: 5.0 }
+    rotation_deg: { z: -5.0, y: 15.0 }
   right_thumb_metacarpal:
     rotation_deg: { x: 18.0, z: 38.0 }
   right_thumb_proximal:
@@ -48,9 +49,9 @@ joints:
   left_middle_proximal:
     rotation_deg: { z: 20.0 }
   chest:
-    rotation_deg: { y: -12.0 }
+    rotation_deg: { y: 8.0 }
   neck:
-    rotation_deg: { y: -8.0 }
+    rotation_deg: { y: 5.0 }
 camera:
   yaw_deg: 8.0
   pitch_deg: 6.0

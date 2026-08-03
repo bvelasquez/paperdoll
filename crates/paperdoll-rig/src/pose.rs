@@ -41,6 +41,9 @@ impl EulerDeg {
 pub struct JointTarget {
     #[serde(default)]
     pub rotation_deg: Option<EulerDeg>,
+    /// glTF/VRMA local rotation (xyzw). Preferred over `rotation_deg` when set (VRMA import).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rotation_quat: Option<[f32; 4]>,
     #[serde(default)]
     pub translation: Option<[f32; 3]>,
 }
@@ -118,12 +121,19 @@ impl Pose {
             let id = skeleton
                 .joint_by_name(name)
                 .ok_or_else(|| PoseError::UnknownJoint(name.clone()))?;
-            if let Some(rot) = target.rotation_deg {
+            if let Some(q) = target.rotation_quat {
+                resolved
+                    .joint_rotations
+                    .insert(id, Quat::from_xyzw(q[0], q[1], q[2], q[3]).normalize());
+            } else if let Some(rot) = target.rotation_deg {
                 resolved.joint_rotations.insert(id, rot.to_quat());
             }
             if let Some(t) = target.translation {
                 resolved.joint_translations.insert(id, Vec3::from(t));
             }
+        }
+        if let Some(patch) = &self.camera {
+            resolved.camera = resolved.camera.with_patch(patch);
         }
         resolved.expressions = self
             .expressions
@@ -150,6 +160,7 @@ mod tests {
                     y: 0.0,
                     z: -90.0,
                 }),
+                rotation_quat: None,
                 translation: None,
             },
         );

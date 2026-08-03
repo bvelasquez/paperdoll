@@ -10,6 +10,34 @@ use std::env;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
+/// Top-level CLI entry (GUI vs offline tools).
+pub enum AppCommand {
+    Run(LaunchConfig),
+    ImportVrma(crate::vrma_import::ImportVrmaCli),
+    FetchDemoMotions,
+    ImportDemoMotions,
+}
+
+/// Parse `std::env::args()` into a run mode or subcommand.
+pub fn parse_app_command() -> Result<AppCommand, String> {
+    let args: Vec<String> = env::args().skip(1).collect();
+    if args.first().map(|s| s.as_str()) == Some("import-vrma") {
+        let cli = crate::vrma_import::parse_import_vrma_args(&args[1..])?;
+        return Ok(AppCommand::ImportVrma(cli));
+    }
+    if args.first().map(|s| s.as_str()) == Some("fetch-demo-motions") {
+        return Ok(AppCommand::FetchDemoMotions);
+    }
+    if args.first().map(|s| s.as_str()) == Some("import-demo-motions") {
+        return Ok(AppCommand::ImportDemoMotions);
+    }
+    if args.first().map(|s| s.as_str()) == Some("help") {
+        print_usage();
+        std::process::exit(0);
+    }
+    Ok(AppCommand::Run(LaunchConfig::from_args_and_env(&args)?))
+}
+
 /// Default Bevy asset path (under the `assets/` folder) for the v2 character.
 pub const DEFAULT_V2_CHARACTER: &str = "characters/default.vrm";
 
@@ -56,6 +84,10 @@ pub struct LaunchConfig {
     pub variant: DollVariant,
     /// Bevy `AssetServer` path for the v2 VRM (e.g. `characters/default.vrm`).
     pub v2_character: String,
+    /// Pick random `play_automatically` animations while idle at the doll window.
+    pub bored_play_enabled: bool,
+    /// Seconds between bored autoplay picks (env `PAPERDOLL_BORED_INTERVAL_SECS`, default 25).
+    pub bored_play_interval_secs: f32,
 }
 
 impl LaunchConfig {
@@ -64,6 +96,18 @@ impl LaunchConfig {
     /// CLI: `paperdoll --variant v1` or `paperdoll --variant=v1`
     /// Env: `PAPERDOLL_VARIANT=v1`, optional `PAPERDOLL_V2_CHARACTER=characters/foo.vrm`
     pub fn from_env_and_args() -> Result<Self, String> {
+        match parse_app_command()? {
+            AppCommand::Run(cfg) => Ok(cfg),
+            AppCommand::ImportVrma(_) => Err(
+                "import-vrma is handled before LaunchConfig; this should not be called".into(),
+            ),
+            AppCommand::FetchDemoMotions | AppCommand::ImportDemoMotions => Err(
+                "demo motion commands are handled before LaunchConfig".into(),
+            ),
+        }
+    }
+
+    fn from_args_and_env(args: &[String]) -> Result<Self, String> {
         let mut variant = env::var("PAPERDOLL_VARIANT")
             .ok()
             .as_deref()
@@ -71,7 +115,6 @@ impl LaunchConfig {
             .transpose()?
             .unwrap_or(DollVariant::V2);
 
-        let args: Vec<String> = env::args().skip(1).collect();
         let mut i = 0;
         while i < args.len() {
             let arg = &args[i];
@@ -100,9 +143,25 @@ impl LaunchConfig {
         let v2_character = env::var("PAPERDOLL_V2_CHARACTER")
             .unwrap_or_else(|_| DEFAULT_V2_CHARACTER.to_string());
 
+        let bored_play_enabled = env::var("PAPERDOLL_BORED_PLAY")
+            .ok()
+            .map(|v| {
+                let v = v.trim();
+                !(v == "0" || v.eq_ignore_ascii_case("false") || v.eq_ignore_ascii_case("off"))
+            })
+            .unwrap_or(true);
+
+        let bored_play_interval_secs = env::var("PAPERDOLL_BORED_INTERVAL_SECS")
+            .ok()
+            .and_then(|v| v.parse::<f32>().ok())
+            .filter(|&s| s > 0.0)
+            .unwrap_or(25.0);
+
         Ok(Self {
             variant,
             v2_character,
+            bored_play_enabled,
+            bored_play_interval_secs,
         })
     }
 
@@ -131,15 +190,24 @@ paperdoll — poseable paper-doll character
 
 Usage:
   paperdoll [--variant v1|v2]
+  paperdoll import-vrma <file.vrma> [--name <id>] [--interval-ms N] [--no-write]
 
 Options:
   --variant, -v   Visual variant: v2 (VRM skinned, default) or v1 (procedural)
   --help, -h      Show this help
 
+Subcommands:
+  import-vrma     Convert a .vrma motion into assets/animations/<name>.yaml
+                  (run `paperdoll import-vrma --help` for options)
+  fetch-demo-motions   Download free sample .vrma files into assets/motions/
+  import-demo-motions  Fetch (if needed) + import all catalog demos to YAML
+
 Environment:
   PAPERDOLL_VARIANT       Same as --variant
   PAPERDOLL_V2_CHARACTER  Bevy asset path under assets/ (default: {DEFAULT_V2_CHARACTER})
   PAPERDOLL_ROOT          Asset root containing assets/poses, assets/animations
+  PAPERDOLL_BORED_INTERVAL_SECS  Seconds between random bored animations (default: 25)
+  PAPERDOLL_BORED_PLAY    Set to 0/false/off to disable bored autoplay
 "
     );
 }

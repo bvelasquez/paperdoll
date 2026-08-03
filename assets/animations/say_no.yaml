@@ -1,0 +1,35 @@
+name: say_no
+description: >
+  Head shake no: center → left → right → left → right → settle.
+  Uses head_turn_left / head_turn_right.
+loop: false
+play_automatically: true
+keyframes:
+  - pose: idle
+    duration_ms: 160
+    easing: ease_out
+    camera:
+      yaw_deg: 5.0
+      pitch_deg: 2.0
+      distance: 1.85
+      look_at: [0.0, 1.35, 0.0]
+  - pose: head_turn_left
+    duration_ms: 200
+    easing: ease_in_out
+  - pose: head_turn_right
+    duration_ms: 260
+    easing: ease_in_out
+  - pose: head_turn_left
+    duration_ms: 240
+    easing: ease_in_out
+  - pose: head_turn_right
+    duration_ms: 220
+    easing: ease_in_out
+  - pose: idle
+    duration_ms: 300
+    easing: ease_in_out
+    camera:
+      yaw_deg: 5.0
+      pitch_deg: 2.0
+      distance: 1.85
+      look_at: [0.0, 1.35, 0.0]

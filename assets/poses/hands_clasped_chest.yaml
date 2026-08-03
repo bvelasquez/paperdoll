@@ -1,0 +1,69 @@
+name: hands_clasped_chest
+description: >
+  Clasped hands at mid-chest. Happy morph. Base for joy_hop_circle.
+joints:
+  right_shoulder:
+    rotation_deg: { y: 72.0, z: -32.0 }
+  right_elbow:
+    rotation_deg: { z: -92.0 }
+  right_wrist:
+    rotation_deg: { y: -12.0, z: 35.0 }
+  left_shoulder:
+    rotation_deg: { y: -72.0, z: 32.0 }
+  left_elbow:
+    rotation_deg: { z: 92.0 }
+  left_wrist:
+    rotation_deg: { y: 12.0, z: -35.0 }
+  right_thumb_metacarpal:
+    rotation_deg: { x: 10.0, z: 38.0 }
+  right_thumb_proximal:
+    rotation_deg: { z: 45.0 }
+  right_index_proximal:
+    rotation_deg: { z: 86.0 }
+  right_index_intermediate:
+    rotation_deg: { z: 90.0 }
+  right_middle_proximal:
+    rotation_deg: { z: 88.0 }
+  right_middle_intermediate:
+    rotation_deg: { z: 92.0 }
+  right_ring_proximal:
+    rotation_deg: { z: 88.0 }
+  right_ring_intermediate:
+    rotation_deg: { z: 92.0 }
+  right_little_proximal:
+    rotation_deg: { z: 84.0 }
+  right_little_intermediate:
+    rotation_deg: { z: 88.0 }
+  left_thumb_metacarpal:
+    rotation_deg: { x: 10.0, z: -38.0 }
+  left_thumb_proximal:
+    rotation_deg: { z: -45.0 }
+  left_index_proximal:
+    rotation_deg: { z: -86.0 }
+  left_index_intermediate:
+    rotation_deg: { z: -90.0 }
+  left_middle_proximal:
+    rotation_deg: { z: -88.0 }
+  left_middle_intermediate:
+    rotation_deg: { z: -92.0 }
+  left_ring_proximal:
+    rotation_deg: { z: -88.0 }
+  left_ring_intermediate:
+    rotation_deg: { z: -92.0 }
+  left_little_proximal:
+    rotation_deg: { z: -84.0 }
+  left_little_intermediate:
+    rotation_deg: { z: -88.0 }
+  neck:
+    rotation_deg: { x: 6.0 }
+  chest:
+    rotation_deg: { x: -4.0 }
+expressions:
+  happy: 1.0
+  aa: 0.35
+  relaxed: 0.1
+camera:
+  yaw_deg: 22.0
+  pitch_deg: 5.0
+  distance: 3.4
+  look_at: [0.0, 0.98, 0.0]

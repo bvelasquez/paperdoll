@@ -1,38 +1,40 @@
 name: wave
 description: >
   Right arm raised in a cartoon wave (upper arm out, forearm up), left arm
-  relaxed. Open-ish waving hand with fingers slightly spread. Soft happy morph.
+  relaxed. Open waving hand with palm roughly toward camera. Soft happy morph.
+  Keep shoulder z mild (~-22) — a large negative z plus deep elbow fold parks
+  the hand on the head. Shoulder y (~50) twists the forearm so the palm faces out.
 joints:
   right_shoulder:
-    rotation_deg: { z: -55.0, y: -28.0 }
+    rotation_deg: { z: -22.0, y: 50.0 }
   right_elbow:
-    rotation_deg: { z: -95.0 }
-  right_wrist:
-    rotation_deg: { z: 25.0, y: 8.0 }
-  right_thumb_metacarpal:
-    rotation_deg: { z: 18.0, x: 8.0 }
-  right_thumb_proximal:
-    rotation_deg: { z: 15.0 }
-  right_index_proximal:
-    rotation_deg: { z: 8.0 }
-  right_index_intermediate:
-    rotation_deg: { z: 6.0 }
-  right_middle_proximal:
-    rotation_deg: { z: 10.0 }
-  right_middle_intermediate:
-    rotation_deg: { z: 8.0 }
-  right_ring_proximal:
-    rotation_deg: { z: 12.0 }
-  right_ring_intermediate:
-    rotation_deg: { z: 10.0 }
-  right_little_proximal:
-    rotation_deg: { z: 14.0 }
-  right_little_intermediate:
-    rotation_deg: { z: 12.0 }
-  left_shoulder:
     rotation_deg: { z: -72.0 }
+  right_wrist:
+    rotation_deg: { z: 18.0 }
+  right_thumb_metacarpal:
+    rotation_deg: { z: 12.0, x: 5.0 }
+  right_thumb_proximal:
+    rotation_deg: { z: 10.0 }
+  right_index_proximal:
+    rotation_deg: { z: 5.0 }
+  right_index_intermediate:
+    rotation_deg: { z: 4.0 }
+  right_middle_proximal:
+    rotation_deg: { z: 6.0 }
+  right_middle_intermediate:
+    rotation_deg: { z: 5.0 }
+  right_ring_proximal:
+    rotation_deg: { z: 8.0 }
+  right_ring_intermediate:
+    rotation_deg: { z: 6.0 }
+  right_little_proximal:
+    rotation_deg: { z: 10.0 }
+  right_little_intermediate:
+    rotation_deg: { z: 8.0 }
+  left_shoulder:
+    rotation_deg: { z: -70.0 }
   left_elbow:
-    rotation_deg: { z: -12.0 }
+    rotation_deg: { z: -10.0 }
   left_index_proximal:
     rotation_deg: { z: 10.0 }
   left_middle_proximal:

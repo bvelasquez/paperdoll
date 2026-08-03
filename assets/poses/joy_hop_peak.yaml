@@ -1,0 +1,43 @@
+name: joy_hop_peak
+description: Hop apex — legs extend, clasped hands bounce at chest.
+joints:
+  right_shoulder:
+    rotation_deg: { y: 70.0, z: -36.0 }
+  right_elbow:
+    rotation_deg: { z: -88.0 }
+  right_wrist:
+    rotation_deg: { y: -10.0, z: 32.0 }
+  left_shoulder:
+    rotation_deg: { y: -70.0, z: 36.0 }
+  left_elbow:
+    rotation_deg: { z: 88.0 }
+  left_wrist:
+    rotation_deg: { y: 10.0, z: -32.0 }
+  right_index_proximal:
+    rotation_deg: { z: 86.0 }
+  right_index_intermediate:
+    rotation_deg: { z: 90.0 }
+  left_index_proximal:
+    rotation_deg: { z: -86.0 }
+  left_index_intermediate:
+    rotation_deg: { z: -90.0 }
+  left_hip:
+    rotation_deg: { x: -4.0 }
+  right_hip:
+    rotation_deg: { x: -4.0 }
+  left_knee:
+    rotation_deg: { x: 8.0 }
+  right_knee:
+    rotation_deg: { x: 8.0 }
+  spine:
+    rotation_deg: { x: -12.0 }
+  chest:
+    rotation_deg: { x: -6.0 }
+  neck:
+    rotation_deg: { x: -6.0 }
+  pelvis:
+    translation: [0.0, 0.12, 0.0]
+expressions:
+  happy: 1.0
+  aa: 0.5
+  ee: 0.18

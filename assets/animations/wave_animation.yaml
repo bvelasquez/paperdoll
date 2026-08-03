@@ -3,6 +3,7 @@ description: >
   Authoring model for a simple pose-ref loop: anticipate raise, wave twice,
   settle. Body + expression come from the wave poses; soft camera stays put.
 loop: false
+play_automatically: true
 keyframes:
   - pose: idle
     duration_ms: 200

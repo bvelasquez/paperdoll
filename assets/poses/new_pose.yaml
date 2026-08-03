@@ -1,0 +1,219 @@
+name: new_pose
+description: >
+  v2 hand-verify reference: raised right arm, fist shape, and stage camera
+  (yaw 50°, pitch 4°, distance 1.2). Use POST /pose new_pose or editor Load for
+  framing hand presets.
+joints:
+  right_little_intermediate:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 90.0
+    translation: null
+  right_middle_intermediate:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 94.99999
+    translation: null
+  left_middle_distal:
+    rotation_deg:
+      x: -0.0
+      y: -0.0
+      z: -70.00001
+    translation: null
+  right_index_proximal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 80.0
+    translation: null
+  left_elbow:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: -10.0
+    translation: null
+  left_ring_intermediate:
+    rotation_deg:
+      x: -0.0
+      y: -0.0
+      z: -94.99999
+    translation: null
+  left_little_proximal:
+    rotation_deg:
+      x: -0.0
+      y: -0.0
+      z: -80.0
+    translation: null
+  right_ring_distal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 70.00001
+    translation: null
+  right_ring_proximal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 84.99999
+    translation: null
+  left_shoulder:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: -78.0
+    translation: null
+  left_index_proximal:
+    rotation_deg:
+      x: -0.0
+      y: -0.0
+      z: -80.0
+    translation: null
+  left_ring_distal:
+    rotation_deg:
+      x: -0.0
+      y: -0.0
+      z: -70.00001
+    translation: null
+  right_little_distal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 70.00001
+    translation: null
+  right_shoulder:
+    rotation_deg:
+      x: -109.99999
+      y: 0.0
+      z: 42.0
+    translation: null
+  left_little_distal:
+    rotation_deg:
+      x: -0.0
+      y: -0.0
+      z: -70.00001
+    translation: null
+  right_thumb_metacarpal:
+    rotation_deg:
+      x: 52.0
+      y: 44.0
+      z: 6.0
+    translation: null
+  right_middle_distal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 70.00001
+    translation: null
+  left_thumb_metacarpal:
+    rotation_deg:
+      x: 20.0
+      y: 4.2688688e-7
+      z: -34.999996
+    translation: null
+  right_thumb_distal:
+    rotation_deg:
+      x: 0.0
+      y: 14.0
+      z: 44.0
+    translation: null
+  left_little_intermediate:
+    rotation_deg:
+      x: -0.0
+      y: -0.0
+      z: -90.0
+    translation: null
+  left_index_intermediate:
+    rotation_deg:
+      x: -0.0
+      y: -0.0
+      z: -90.0
+    translation: null
+  right_elbow:
+    rotation_deg:
+      x: -180.0
+      y: 64.99999
+      z: -140.00002
+    translation: null
+  right_index_distal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 70.00001
+    translation: null
+  right_ring_intermediate:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 94.99999
+    translation: null
+  left_index_distal:
+    rotation_deg:
+      x: -0.0
+      y: -0.0
+      z: -70.00001
+    translation: null
+  right_index_intermediate:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 90.0
+    translation: null
+  left_middle_intermediate:
+    rotation_deg:
+      x: -0.0
+      y: -0.0
+      z: -94.99999
+    translation: null
+  left_thumb_proximal:
+    rotation_deg:
+      x: -0.0
+      y: -0.0
+      z: -39.999996
+    translation: null
+  right_little_proximal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 80.0
+    translation: null
+  right_middle_proximal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 84.99999
+    translation: null
+  left_thumb_distal:
+    rotation_deg:
+      x: -0.0
+      y: -0.0
+      z: -34.999996
+    translation: null
+  right_thumb_proximal:
+    rotation_deg:
+      x: 24.0
+      y: 32.0
+      z: 38.0
+    translation: null
+  left_middle_proximal:
+    rotation_deg:
+      x: -0.0
+      y: -0.0
+      z: -84.99999
+    translation: null
+  left_ring_proximal:
+    rotation_deg:
+      x: -0.0
+      y: -0.0
+      z: -84.99999
+    translation: null
+camera:
+  yaw_deg: 50.0
+  pitch_deg: 4.0
+  distance: 1.2
+  look_at:
+  - 0.33
+  - 1.41
+  - 0.16
+expressions: {}

@@ -14,6 +14,7 @@ pub fn blend_poses(
     from: &ResolvedPose,
     to: &ResolvedPose,
     eased_t: f32,
+    vrm_local_rotations: bool,
 ) -> HashMap<JointId, Quat> {
     let joint_ids: HashSet<JointId> = from
         .joint_rotations
@@ -24,7 +25,11 @@ pub fn blend_poses(
 
     let mut result = HashMap::with_capacity(joint_ids.len());
     for id in joint_ids {
-        let rest = skeleton.joint(id).local_rotation;
+        let rest = if vrm_local_rotations {
+            Quat::IDENTITY
+        } else {
+            skeleton.joint(id).local_rotation
+        };
         let from_rot = from.joint_rotations.get(&id).copied().unwrap_or(rest);
         let to_rot = to.joint_rotations.get(&id).copied().unwrap_or(rest);
         result.insert(id, from_rot.slerp(to_rot, eased_t));
@@ -196,14 +201,22 @@ pub fn blend_expressions(
     result
 }
 
+fn vrm_local_for_target(target: &PlaybackTarget) -> bool {
+    match target {
+        PlaybackTarget::Animation(a) => a.vrm_local_rotations,
+        PlaybackTarget::Pose(_) => false,
+    }
+}
+
 fn blend_frame(
     skeleton: &Skeleton,
     from: &ResolvedPose,
     to: &ResolvedPose,
     eased_t: f32,
+    vrm_local_rotations: bool,
 ) -> ResolvedPose {
     ResolvedPose {
-        joint_rotations: blend_poses(skeleton, from, to, eased_t),
+        joint_rotations: blend_poses(skeleton, from, to, eased_t, vrm_local_rotations),
         joint_translations: blend_translations(skeleton, from, to, eased_t),
         camera: blend_cameras(from.camera, to.camera, eased_t),
         expressions: blend_expressions(&from.expressions, &to.expressions, eased_t),
@@ -306,8 +319,9 @@ impl PlaybackState {
                 } else {
                     *elapsed_ms as f32 / *duration_ms as f32
                 };
+                let vrm_local = vrm_local_for_target(target);
                 let to = resolve_target(first_pose(target), skeleton, from);
-                blend_frame(skeleton, from, &to, easing.apply(t))
+                blend_frame(skeleton, from, &to, easing.apply(t), vrm_local)
             }
             PlaybackState::Playing {
                 animation,
@@ -324,8 +338,22 @@ impl PlaybackState {
                     (*elapsed_ms as f32 / kf.duration_ms as f32).clamp(0.0, 1.0)
                 };
                 let to = resolve_target(&kf.pose, skeleton, segment_from);
-                blend_frame(skeleton, segment_from, &to, kf.easing.apply(t))
+                blend_frame(
+                    skeleton,
+                    segment_from,
+                    &to,
+                    kf.easing.apply(t),
+                    animation.vrm_local_rotations,
+                )
             }
+        }
+    }
+
+    pub fn uses_vrm_local_rotations(&self) -> bool {
+        match self {
+            PlaybackState::Idle { .. } => false,
+            PlaybackState::TransitioningTo { target, .. } => vrm_local_for_target(target),
+            PlaybackState::Playing { animation, .. } => animation.vrm_local_rotations,
         }
     }
 
@@ -364,8 +392,15 @@ impl PlaybackState {
                 } else {
                     elapsed_ms as f32 / duration_ms as f32
                 };
+                let vrm_local = vrm_local_for_target(&target);
                 let to_resolved = resolve_target(first_pose(&target), skeleton, &from);
-                let blended = blend_frame(skeleton, &from, &to_resolved, easing.apply(t));
+                let blended = blend_frame(
+                    skeleton,
+                    &from,
+                    &to_resolved,
+                    easing.apply(t),
+                    vrm_local,
+                );
 
                 if elapsed_ms >= duration_ms {
                     let next = match target {
@@ -419,8 +454,13 @@ impl PlaybackState {
                         elapsed_ms as f32 / kf.duration_ms as f32
                     };
                     let to_resolved = resolve_target(&kf.pose, skeleton, &segment_from);
-                    let blended =
-                        blend_frame(skeleton, &segment_from, &to_resolved, kf.easing.apply(t));
+                    let blended = blend_frame(
+                        skeleton,
+                        &segment_from,
+                        &to_resolved,
+                        kf.easing.apply(t),
+                        animation.vrm_local_rotations,
+                    );
 
                     if elapsed_ms >= kf.duration_ms {
                         let next_index = keyframe_index + 1;
@@ -467,6 +507,69 @@ impl PlaybackState {
     pub fn is_idle(&self) -> bool {
         matches!(self, PlaybackState::Idle { .. })
     }
+
+    /// Total duration of the playable segment after the first keyframe (matches
+    /// [`PlaybackState::advance`] once the rig has reached keyframe index 1).
+    pub fn animation_playable_duration_ms(animation: &Animation) -> u32 {
+        animation
+            .keyframes
+            .iter()
+            .skip(1)
+            .map(|kf| kf.duration_ms)
+            .sum()
+    }
+
+    /// Sample an animation at `time_ms` along the same timeline as steady-state
+    /// [`Playing`](PlaybackState::Playing): the rig is held at the first keyframe's
+    /// resolved pose at `t = 0`, then each subsequent keyframe segment runs for its
+    /// authored `duration_ms`. When `animation.looping` is true, `time_ms` wraps.
+    pub fn pose_at_animation_time(
+        skeleton: &Skeleton,
+        animation: &Animation,
+        time_ms: u32,
+    ) -> ResolvedPose {
+        if animation.keyframes.is_empty() {
+            return ResolvedPose::empty();
+        }
+        let from_empty = ResolvedPose::empty();
+        let mut segment_from =
+            resolve_target(&animation.keyframes[0].pose, skeleton, &from_empty);
+        if animation.keyframes.len() == 1 {
+            return segment_from;
+        }
+
+        let total = Self::animation_playable_duration_ms(animation);
+        let t = if animation.looping && total > 0 {
+            time_ms % total
+        } else {
+            time_ms.min(total)
+        };
+        if t == 0 {
+            return segment_from;
+        }
+
+        let mut remaining = t;
+        for kf in animation.keyframes.iter().skip(1) {
+            if remaining <= kf.duration_ms {
+                let progress = if kf.duration_ms == 0 {
+                    1.0
+                } else {
+                    remaining as f32 / kf.duration_ms as f32
+                };
+                let to = resolve_target(&kf.pose, skeleton, &segment_from);
+                return blend_frame(
+                    skeleton,
+                    &segment_from,
+                    &to,
+                    kf.easing.apply(progress),
+                    animation.vrm_local_rotations,
+                );
+            }
+            remaining -= kf.duration_ms;
+            segment_from = resolve_target(&kf.pose, skeleton, &segment_from);
+        }
+        segment_from
+    }
 }
 
 #[cfg(test)]
@@ -485,6 +588,7 @@ mod tests {
                     y: 0.0,
                     z: z_deg,
                 }),
+                rotation_quat: None,
                 translation: None,
             },
         );
@@ -509,8 +613,8 @@ mod tests {
             .resolve(&skeleton)
             .unwrap();
 
-        let at_start = blend_poses(&skeleton, &from, &to, 0.0);
-        let at_end = blend_poses(&skeleton, &from, &to, 1.0);
+        let at_start = blend_poses(&skeleton, &from, &to, 0.0, false);
+        let at_end = blend_poses(&skeleton, &from, &to, 1.0, false);
 
         // angle_between loses precision near-parallel quaternions (acos'(1) blows up
         // near t=0/1), so use a tolerance well above float noise rather than 1e-4.
@@ -570,6 +674,8 @@ mod tests {
             name: "test_anim".into(),
             description: None,
             looping: false,
+            vrm_local_rotations: false,
+            play_automatically: false,
             keyframes: vec![
                 Keyframe {
                     pose: pose_with_rotation("start", "right_shoulder", 0.0),
@@ -677,6 +783,7 @@ mod tests {
                             y: 0.0,
                             z: 80.0,
                         }),
+                        rotation_quat: None,
                         translation: None,
                     },
                 );
@@ -688,6 +795,7 @@ mod tests {
                             y: 0.0,
                             z: 30.0,
                         }),
+                        rotation_quat: None,
                         translation: None,
                     },
                 );
@@ -731,6 +839,8 @@ mod tests {
             name: "test_anim".into(),
             description: None,
             looping: false,
+            vrm_local_rotations: false,
+            play_automatically: false,
             keyframes: vec![
                 Keyframe {
                     pose: pose_with_rotation("start", "right_shoulder", 0.0),
@@ -768,6 +878,8 @@ mod tests {
             name: "loop_anim".into(),
             description: None,
             looping: true,
+            vrm_local_rotations: false,
+            play_automatically: false,
             keyframes: vec![
                 Keyframe {
                     pose: pose_with_rotation("a", "right_shoulder", 0.0),
@@ -867,5 +979,82 @@ mod tests {
             "non-hold empty expressions should fade happy out"
         );
         let _ = &mut happy;
+    }
+
+    #[test]
+    fn pose_at_animation_time_matches_playback_mid_segment() {
+        let skeleton = Skeleton::humanoid_default();
+        let joint = skeleton.joint_by_name("right_shoulder").unwrap();
+        let anim = Animation {
+            name: "scrub".into(),
+            description: None,
+            looping: false,
+            vrm_local_rotations: false,
+            play_automatically: false,
+            keyframes: vec![
+                Keyframe {
+                    pose: pose_with_rotation("start", "right_shoulder", 0.0),
+                    duration_ms: 0,
+                    easing: Easing::Linear,
+                },
+                Keyframe {
+                    pose: pose_with_rotation("end", "right_shoulder", -90.0),
+                    duration_ms: 1000,
+                    easing: Easing::Linear,
+                },
+            ],
+        };
+
+        let at_half = PlaybackState::pose_at_animation_time(&skeleton, &anim, 500);
+        let mut state = PlaybackState::new();
+        state.interrupt(&skeleton, PlaybackTarget::Animation(anim.clone()), 0);
+        state.advance(&skeleton, 1);
+        let playing_mid = state.advance(&skeleton, 500).unwrap();
+
+        assert!(
+            at_half.joint_rotations[&joint]
+                .angle_between(playing_mid.joint_rotations[&joint])
+                < 0.05,
+            "scrub sample should match live playback at the same time"
+        );
+    }
+
+    #[test]
+    fn transition_to_idle_pose_with_camera_restores_default_stage() {
+        use crate::camera::{CameraTarget, DEFAULT_CAMERA, ResolvedCamera};
+
+        let skeleton = Skeleton::humanoid_default();
+        let mut from = ResolvedPose::empty();
+        from.camera = ResolvedCamera {
+            yaw_deg: 280.0,
+            pitch_deg: 15.0,
+            distance: 2.5,
+            look_at: [0.2, 1.2, 0.1],
+        };
+
+        let idle = Pose {
+            name: "idle".into(),
+            description: None,
+            joints: HashMap::new(),
+            camera: Some(CameraTarget::full_default_stage()),
+            expressions: HashMap::new(),
+            hold_joints: false,
+        };
+
+        let mut state = PlaybackState::new();
+        state.interrupt(&skeleton, PlaybackTarget::Pose(idle), 500);
+        let mid = state.advance(&skeleton, 250).unwrap();
+        assert!(
+            (mid.camera.yaw_deg - from.camera.yaw_deg).abs() > 5.0,
+            "camera should move toward default mid-transition"
+        );
+        assert!(
+            (mid.camera.yaw_deg - DEFAULT_CAMERA.yaw_deg).abs()
+                < (from.camera.yaw_deg - DEFAULT_CAMERA.yaw_deg).abs(),
+            "mid yaw should be closer to default than start"
+        );
+        let end = state.advance(&skeleton, 250).unwrap();
+        assert!((end.camera.yaw_deg - DEFAULT_CAMERA.yaw_deg).abs() < 0.01);
+        assert!((end.camera.distance - DEFAULT_CAMERA.distance).abs() < 0.01);
     }
 }

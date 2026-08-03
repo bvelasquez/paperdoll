@@ -47,6 +47,19 @@ impl Default for ResolvedCamera {
     }
 }
 
+impl CameraTarget {
+    /// Every field set to [`DEFAULT_CAMERA`] — use on idle / baseline poses so revert
+    /// and `/pose idle` restore the default stage, not the last animation camera.
+    pub fn full_default_stage() -> Self {
+        Self {
+            yaw_deg: Some(DEFAULT_CAMERA.yaw_deg),
+            pitch_deg: Some(DEFAULT_CAMERA.pitch_deg),
+            distance: Some(DEFAULT_CAMERA.distance),
+            look_at: Some(DEFAULT_CAMERA.look_at),
+        }
+    }
+}
+
 impl ResolvedCamera {
     pub fn look_at_vec(self) -> Vec3 {
         Vec3::from_array(self.look_at)

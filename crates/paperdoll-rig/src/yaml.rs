@@ -60,6 +60,83 @@ pub fn load_animations_from_dir(
     Ok(animations)
 }
 
+/// Parse a single `assets/animations/*.yaml` file without resolving poses.
+pub fn load_animation_file(path: &Path) -> Result<AnimationFile, YamlLoadError> {
+    parse_yaml_file(path)
+}
+
+/// Rebuild an [`AnimationFile`] suitable for YAML / editor authoring from a resolved
+/// [`Animation`]. Synthetic runtime pose names (`{animation}#{index}`) become inline
+/// `joints`, `camera`, and/or `expressions` keyframes again — not bogus `pose:` refs.
+pub fn animation_to_file(animation: &Animation) -> AnimationFile {
+    let name = animation.name.clone();
+    AnimationFile {
+        name: name.clone(),
+        description: animation.description.clone(),
+        looping: animation.looping,
+        vrm_local_rotations: animation.vrm_local_rotations,
+        play_automatically: animation.play_automatically,
+        keyframes: animation
+            .keyframes
+            .iter()
+            .enumerate()
+            .map(|(index, kf)| keyframe_to_authoring_spec(&name, index, kf))
+            .collect(),
+    }
+}
+
+fn synthetic_keyframe_pose_name(animation_name: &str, index: usize) -> String {
+    format!("{animation_name}#{index}")
+}
+
+fn keyframe_to_authoring_spec(animation_name: &str, index: usize, kf: &Keyframe) -> KeyframeSpec {
+    let pose = &kf.pose;
+    if pose.name == synthetic_keyframe_pose_name(animation_name, index) {
+        let hold = if pose.hold_joints
+            && (!pose.expressions.is_empty() || !pose.joints.is_empty())
+        {
+            Some(true)
+        } else {
+            None
+        };
+        return KeyframeSpec {
+            pose: None,
+            joints: if pose.joints.is_empty() {
+                None
+            } else {
+                Some(pose.joints.clone())
+            },
+            camera: pose.camera.clone(),
+            expressions: if pose.expressions.is_empty() {
+                None
+            } else {
+                Some(pose.expressions.clone())
+            },
+            hold,
+            duration_ms: kf.duration_ms,
+            easing: kf.easing,
+        };
+    }
+
+    KeyframeSpec {
+        pose: Some(pose.name.clone()),
+        joints: None,
+        camera: pose.camera.clone(),
+        expressions: if pose.expressions.is_empty() {
+            None
+        } else {
+            Some(pose.expressions.clone())
+        },
+        hold: if pose.hold_joints && !pose.joints.is_empty() {
+            Some(true)
+        } else {
+            None
+        },
+        duration_ms: kf.duration_ms,
+        easing: kf.easing,
+    }
+}
+
 /// Resolves a raw [`AnimationFile`] (parsed from a YAML file, or from JSON POSTed to
 /// an HTTP API's animation-registration endpoint) against a pose registry,
 /// materializing each keyframe's `pose:` name reference or inline `joints` into a
@@ -83,6 +160,8 @@ pub fn resolve_animation(
         name: file.name,
         description: file.description,
         looping: file.looping,
+        vrm_local_rotations: file.vrm_local_rotations,
+        play_automatically: file.play_automatically,
         keyframes,
     })
 }
@@ -165,6 +244,51 @@ fn parse_yaml_file<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, Yam
     let text = std::fs::read_to_string(path)
         .map_err(|e| YamlLoadError::ReadFile(path.display().to_string(), e))?;
     serde_yaml::from_str(&text).map_err(|e| YamlLoadError::Parse(path.display().to_string(), e))
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum YamlWriteError {
+    #[error("failed to write file '{0}': {1}")]
+    WriteFile(String, std::io::Error),
+    #[error("failed to serialize yaml: {0}")]
+    Serialize(serde_yaml::Error),
+}
+
+/// Sanitize a pose/animation name into a safe `*.yaml` stem.
+pub fn sanitize_asset_filename(name: &str) -> String {
+    let stem = name.trim();
+    if stem.is_empty() {
+        return "untitled".to_string();
+    }
+    stem.chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '_' || c == '-' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect()
+}
+
+pub fn pose_yaml_path(dir: &Path, name: &str) -> std::path::PathBuf {
+    dir.join(format!("{}.yaml", sanitize_asset_filename(name)))
+}
+
+pub fn animation_yaml_path(dir: &Path, name: &str) -> std::path::PathBuf {
+    dir.join(format!("{}.yaml", sanitize_asset_filename(name)))
+}
+
+/// Write a pose to disk using the same schema as `assets/poses/*.yaml`.
+pub fn write_pose_yaml(path: &Path, pose: &Pose) -> Result<(), YamlWriteError> {
+    let text = serde_yaml::to_string(pose).map_err(YamlWriteError::Serialize)?;
+    std::fs::write(path, text).map_err(|e| YamlWriteError::WriteFile(path.display().to_string(), e))
+}
+
+/// Write an animation file to disk using the same schema as `assets/animations/*.yaml`.
+pub fn write_animation_yaml(path: &Path, file: &AnimationFile) -> Result<(), YamlWriteError> {
+    let text = serde_yaml::to_string(file).map_err(YamlWriteError::Serialize)?;
+    std::fs::write(path, text).map_err(|e| YamlWriteError::WriteFile(path.display().to_string(), e))
 }
 
 #[cfg(test)]
@@ -337,6 +461,33 @@ keyframes:
     }
 
     #[test]
+    fn animation_to_file_round_trips_orbit_victory() {
+        let poses = load_poses_from_dir(Path::new("../../assets/poses")).unwrap_or_default();
+        let dir = Path::new("../../assets/animations");
+        let animations = load_animations_from_dir(dir, &poses).unwrap();
+        let anim = animations.get("orbit_victory").expect("orbit_victory");
+        let file = animation_to_file(anim);
+        assert!(file.keyframes[2].pose.is_none());
+        assert!(file.keyframes[2].camera.is_some());
+        let again = resolve_animation(file, &poses).unwrap();
+        assert_eq!(again.keyframes.len(), anim.keyframes.len());
+    }
+
+    #[test]
+    fn animation_to_file_round_trips_happy_bounce() {
+        let poses = load_poses_from_dir(Path::new("../../assets/poses")).unwrap_or_default();
+        let animations =
+            load_animations_from_dir(Path::new("../../assets/animations"), &poses).unwrap();
+        let anim = animations.get("happy_bounce").expect("happy_bounce");
+        let file = animation_to_file(anim);
+        let again = resolve_animation(file.clone(), &poses).unwrap();
+        assert_eq!(again.keyframes.len(), anim.keyframes.len());
+        assert!(file.keyframes[1].pose.is_none());
+        assert_eq!(file.keyframes[1].hold, Some(true));
+        assert!(file.keyframes[1].expressions.is_some());
+    }
+
+    #[test]
     fn expression_only_keyframe_is_valid_hold() {
         let file: AnimationFile = serde_yaml::from_str(
             r#"
@@ -352,5 +503,22 @@ keyframes:
         let animation = resolve_animation(file, &HashMap::new()).unwrap();
         assert!(animation.keyframes[0].pose.hold_joints);
         assert!((animation.keyframes[0].pose.expressions["blink"] - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn write_pose_yaml_round_trips() {
+        let dir = TempDir::new("write-pose");
+        let path = dir.0.join("wave.yaml");
+        let pose = Pose {
+            name: "wave".into(),
+            description: Some("test".into()),
+            joints: HashMap::new(),
+            camera: None,
+            expressions: HashMap::new(),
+            hold_joints: false,
+        };
+        write_pose_yaml(&path, &pose).unwrap();
+        let loaded = load_poses_from_dir(&dir.0).unwrap();
+        assert_eq!(loaded["wave"].name, "wave");
     }
 }

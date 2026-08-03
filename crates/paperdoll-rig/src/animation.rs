@@ -86,6 +86,13 @@ pub struct AnimationFile {
     pub description: Option<String>,
     #[serde(default, rename = "loop")]
     pub looping: bool,
+    /// When true, joint rotations are VRM/glTF absolute local quaternions (VRMA import),
+    /// not rest-relative Euler offsets used by hand-authored poses.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub vrm_local_rotations: bool,
+    /// When true, the app may pick this clip at random while idle (“bored” autoplay).
+    #[serde(default, rename = "play_automatically", skip_serializing_if = "std::ops::Not::not")]
+    pub play_automatically: bool,
     pub keyframes: Vec<KeyframeSpec>,
 }
 
@@ -105,6 +112,8 @@ pub struct Animation {
     pub name: String,
     pub description: Option<String>,
     pub looping: bool,
+    pub vrm_local_rotations: bool,
+    pub play_automatically: bool,
     pub keyframes: Vec<Keyframe>,
 }
 

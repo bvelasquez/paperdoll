@@ -1,0 +1,105 @@
+name: contrapposto
+description: |
+  Classical weight shift: soft left knee (free leg), weight on straight right leg, pelvis cocked, opposite shoulder drop, relaxed arms (right hand loosely near the hip). Head turns slightly toward the free-leg side.
+joints:
+  right_shoulder:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 45.000004
+    translation: null
+  left_elbow:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: -10.0
+    translation: null
+  chest:
+    rotation_deg:
+      x: -10.0
+      y: 2.1344344e-7
+      z: 10.0
+    translation: null
+  right_middle_proximal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 45.000004
+    translation: null
+  left_shoulder:
+    rotation_deg:
+      x: -24.999996
+      y: 19.999994
+      z: -54.999985
+    translation: null
+  left_hip:
+    rotation_deg:
+      x: -1.0
+      y: 0.0
+      z: 0.0
+    translation: null
+  left_ankle:
+    rotation_deg:
+      x: -12.0
+      y: 0.0
+      z: 0.0
+    translation: null
+  left_knee:
+    rotation_deg:
+      x: 10.0
+      y: 0.0
+      z: 0.0
+    translation: null
+  right_elbow:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 60.000004
+    translation: null
+  spine:
+    rotation_deg:
+      x: 10.000002
+      y: -10.000003
+      z: -10.000002
+    translation: null
+  right_wrist:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: -8.000002
+    translation: null
+  right_hip:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 3.999999
+    translation: null
+  right_index_proximal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 39.999992
+    translation: null
+  neck:
+    rotation_deg:
+      x: 5.4552963e-8
+      y: -12.000002
+      z: 3.0000005
+    translation: null
+  pelvis:
+    rotation_deg:
+      x: 9.999998
+      y: 0.0
+      z: 1.0
+    translation: null
+camera:
+  yaw_deg: 30.0
+  pitch_deg: 6.0
+  distance: 4.1
+  look_at:
+  - 0.0
+  - 0.9
+  - 0.0
+expressions:
+  happy: 0.15
+  relaxed: 0.45

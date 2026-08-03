@@ -3,6 +3,7 @@ description: >
   Cheer template: soft smile → morph blink → arms-up victory → fist pump peak →
   settle. Expressions ride on poses; blink uses hold:true + step. Gentle camera bounce.
 loop: false
+play_automatically: true
 keyframes:
   - pose: hands_on_hips
     duration_ms: 320

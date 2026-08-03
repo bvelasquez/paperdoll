@@ -18,8 +18,14 @@ agent (human or AI) can pose the character on demand.
 - **`assets/poses/*.yaml`**, **`assets/animations/*.yaml`** — curated v2 pose
   and animation library (`idle`, `t_pose`, `wave`/`wave_return`, `victory`,
   finger exemplars `peace_sign_right`/`fist_pump_right`/`point`, plus
-  `hands_on_hips`/`bow`/`think`/`shrug`; animations: `wave_animation`,
-  `finger_emote`, `happy_bounce`, `hero_intro`, `point_hero`, `orbit_victory`).
+  `hands_on_hips`/`bow`/`think`/`shrug`, stance/gesture `squat`/`kneel`/
+  `contrapposto`/`cross_arms`, head keyframes `head_turn_*`/`head_nod_*`;
+  animations: `wave_animation`, `finger_emote`, `happy_bounce`, `hero_intro`,
+  `point_hero`, `orbit_victory`, `say_no`, `say_yes`, imported mocap
+  `vrma_clapping` / `vrma_jump` / `vrma_goodbye`).
+
+Agents: see **[AGENTS.md](AGENTS.md)** and `GET /capabilities` (`agent_system_prompt`,
+`example_poses`, `example_animations`, `timing_guide`, `camera_framing`).
 
 ## Status
 
@@ -66,11 +72,13 @@ Implemented so far (see `paperdoll-rig`'s ~20 unit/integration tests):
       new `POST /pose`/`POST /animation` commands, so it doesn't stay frozen
       in whatever was last requested
 - [x] `GET /state` — live joint + camera + playback-mode snapshot for agents
+- [x] In-app pose/animation editor (**F2**): egui panels, live preview, save YAML
+      under `assets/poses` and `assets/animations`; `POST /pose` / `POST /animation`
+      return **409** while the editor holds the rig
 - [x] Camera choreography (orbit yaw/pitch/distance/look_at) on poses and
       animation keyframes, including camera-only holds
-- [x] **v2** VRM 1.0 skinned humanoid (AliciaSolid seed under
-      `assets/characters/default.vrm`) driven by the same pose/animation API,
-      including **finger joints** and **expressions**
+- [x] **VRMA import** — `paperdoll import-vrma` and `POST /import/vrma` sample
+      `.vrma` motions from `assets/motions/` into YAML animations (see below)
 
 ## Variants (v1 / v2 A/B)
 
@@ -123,12 +131,44 @@ When adding new content, start from one of these shipped exemplars:
 Also useful: `wave_animation` (simple pose-ref loop), `hero_intro` / `point_hero`
 (camera push-in), `orbit_victory` (camera-only orbit while body holds).
 
+### Import VRM Animation (`.vrma`)
+
+Community motions in [VRM Animation](https://vrm.dev/en/vrma/) format are sampled
+into paperdoll keyframes (body rotations + hips root-motion offsets for jump/slide;
+camera is not imported). Rotations are sampled as **glTF local** quaternions (`vrm_local_rotations: true`)
+with arm/finger motion scaled down at import to limit hand penetration on retarget.
+
+1. Drop `.vrma` files under `assets/motions/` (see `assets/motions/ATTRIBUTION.md`), or run:
+
+```sh
+paperdoll import-demo-motions   # downloads catalog + writes assets/animations/vrma_*.yaml
+```
+
+2. **CLI** (single file, no window required):
+
+```sh
+paperdoll import-vrma assets/motions/Clapping.vrma --name vrma_clapping --interval-ms 120
+```
+
+Writes `assets/animations/<name>.yaml` and prints a JSON summary.
+
+3. **HTTP** (while the app is running):
+
+```sh
+curl -s -X POST http://127.0.0.1:7878/import/vrma \
+  -H 'Content-Type: application/json' \
+  -d '{"path":"motions/Clapping.vrma","name":"vrma_clapping","play":true}'
+```
+
+`GET /capabilities` documents `POST /import/vrma`. Restart the app (or import via
+HTTP) to pick up YAML written offline.
+
 
 ## Running
 
 ```sh
 cargo test --workspace   # rig logic + YAML asset validation
-cargo run -p paperdoll-app   # v2 VRM (default)
+cargo run -p paperdoll-app   # v2 VRM (default); press **F2** for the pose/animation editor
 cargo run -p paperdoll-app -- --variant v1   # procedural capsules
 cargo run -p paperdoll-app -- --variant v2   # explicit v2
 cargo run -p paperdoll-app -- --variant v2   # VRM skinned doll
@@ -186,9 +226,18 @@ pose board of worked examples in `example_poses`); short version:
   **perpendicular** axis swings it.
   - Arm chain (shoulder/elbow/wrist/hand, offset along X): `x` = no-op,
     `z` = raise/lower the limb (the useful axis), `y` = forward/back swing.
-  - **Sign from T-pose (arms):** right arm — **negative** `z` raises overhead,
-    **positive** `z` lowers toward the hip. Left arm is mirrored (positive
-    raises, negative lowers). So `victory` is `right.z=-80`, `left.z=+80`.
+  - **Sign from T-pose (arms, z):** right arm — **negative** `z` raises
+    overhead, **positive** `z` lowers toward the hip. Left arm is mirrored
+    (positive raises, negative lowers). So `victory` is `right.z=-80`,
+    `left.z=+80`.
+  - **Sign from T-pose (arms, y):** right arm — **positive** `y` swings
+    **forward** toward the camera; **negative** `y` swings **behind** the
+    body. `point` uses `right_shoulder.y ≈ +75`. Check forward/back with a
+    side camera (`yaw ≈ 75`) — front views foreshorten and lie.
+  - **Wave pitfall:** large negative `right_shoulder.z` plus a deep elbow
+    fold parks the hand on the head (`think`). A cartoon wave keeps
+    shoulder `z` mild (~`-22`), elbow ~`-72`, and positive shoulder `y` so
+    the palm faces out — see live `wave` / `wave_return`.
   - Leg chain (hip/knee/ankle, offset along Y): `y` = no-op, `x` = swing
     forward/back (the useful axis), `z` = sideways swing (unverified).
 - Mirrored pairs need **opposite-signed** `z` to produce the same visual
@@ -197,10 +246,15 @@ pose board of worked examples in `example_poses`); short version:
 - Sparse poses omit unchanged joints; those joints blend back to rest. Empty
   `joints` (`t_pose`) fully resets. Prefer `spine`/`chest` `x` for a bow —
   `pelvis` `x` tips the legs too.
+- Animations resolve pose refs **at registration**. After `POST /poses`
+  updates a pose that animations reference, re-`POST /animations` those
+  sequences or they keep stale joint values.
 
 These were derived empirically against the running rig (`POST /poses` +
 `POST /pose` + `GET /screenshot`, not from reasoning about the rotation math
 in the abstract) — trust the guide over intuition when authoring a new pose.
+Prefer copying joint maps from `GET /capabilities` → `example_poses` (live
+library) over inventing angles.
 
 ## Milestones
 
@@ -214,11 +268,12 @@ in the abstract) — trust the guide over intuition when authoring a new pose.
 | M6 | Full animation sequence playback over the API — **done** (folded into M5; `POST /animation` plays any loaded sequence) |
 | M6.5 | Runtime pose/animation registration (`POST /poses`/`POST /animations`) + `GET /capabilities` — **done** |
 | M6.6 | `GET /screenshot` + default idle pose with auto-revert-on-timeout — **done** |
-| M6.7 | `posing_guide` + `example_poses` pose board in `GET /capabilities`, so the API is self-teaching — **done** |
+| M6.7 | Agent self-teaching `GET /capabilities` (posing guide, pose/animation boards, catalogs, timing/camera, `agent_system_prompt`) — **done** |
 | M6.8 | `GET /state` live joint/camera snapshot — **done** |
 | M7 | Camera choreography (orbit yaw/pitch/distance/look_at on poses + keyframes) — **done** |
 | M8a | v1/v2 A/B: `--variant` / `PAPERDOLL_VARIANT`, `GET`/`POST /variant`, **v2 default** — **done** |
 | M8b | v2 VRM 1.0 skinned mesh + humanoid→paperdoll joint map — **done** |
 | M8c | v2 full-mesh character swap API (stretch) |
 | M9 | VRM expressions (`GET`/`POST /expressions`) + finger joints in skeleton — **done** |
+| M11 | In-app pose/animation editor (F2, egui, YAML export, v1/v2) — **done** |
 | M10+ | spring bones / MToon / LookAt (stretch, v2-only) |

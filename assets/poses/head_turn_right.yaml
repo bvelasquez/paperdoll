@@ -1,0 +1,22 @@
+name: head_turn_right
+description: >
+  Face turns right (neck −y ≈ 42°). Neutral standing arms. Keyframe for say_no.
+joints:
+  neck:
+    rotation_deg: { y: -42.0 }
+  left_shoulder:
+    rotation_deg: { z: -60.0 }
+  right_shoulder:
+    rotation_deg: { z: 60.0 }
+  left_elbow:
+    rotation_deg: { z: -12.0 }
+  right_elbow:
+    rotation_deg: { z: 12.0 }
+camera:
+  yaw_deg: 5.0
+  pitch_deg: 2.0
+  distance: 1.85
+  look_at: [0.0, 1.35, 0.0]
+expressions:
+  sad: 0.12
+  relaxed: 0.25

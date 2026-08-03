@@ -5,20 +5,31 @@
 //! Loads `assets/poses/*.yaml` and `assets/animations/*.yaml` once here (before
 //! `App::run`, so both the visual spawn path and `http_api::start_http_server`
 //! share the exact same `PoseLibrary`/`AnimationLibrary` instances). The doll
-//! opens in the default `idle` pose; an HTTP API lets an external caller trigger
+//! opens in play mode on the default `idle` pose; while idle it may play random
+//! `play_automatically` animations (see `PAPERDOLL_BORED_INTERVAL_SECS`). An HTTP API lets an external caller trigger
 //! poses/animations or register new ones. `GET /capabilities` documents the API.
 
+mod agent_capabilities;
+mod bored_play;
+mod camera_controls;
 mod doll_mesh;
+mod editor;
+mod editor_state;
 mod http_api;
 mod live_state;
 mod rig_bridge;
 mod screenshot_bridge;
 mod v2_expressions;
 mod v2_vrm;
+mod vrma_import;
 mod variant;
 
 use bevy::prelude::*;
+use bevy_egui::EguiPlugin;
+use camera_controls::ViewportCamera;
 use bevy_vrm1::prelude::VrmPlugin;
+use editor::EditorPlugin;
+use editor_state::SharedEditorState;
 use live_state::LiveState;
 use paperdoll_rig::{load_animations_from_dir, load_poses_from_dir, DEFAULT_CAMERA};
 use rig_bridge::{
@@ -29,15 +40,9 @@ use std::env;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 use v2_expressions::{SharedExpressionState, V2ExpressionBindings};
-use variant::{LaunchConfig, SharedVariantState};
+use variant::{parse_app_command, AppCommand, SharedVariantState};
 
 fn main() {
-    let launch = LaunchConfig::from_env_and_args().unwrap_or_else(|e| {
-        eprintln!("paperdoll: {e}");
-        eprintln!("Try `paperdoll --help`.");
-        std::process::exit(2);
-    });
-
     let root = resolve_asset_root();
     if let Err(e) = env::set_current_dir(&root) {
         panic!(
@@ -45,6 +50,38 @@ fn main() {
             root.display()
         );
     }
+
+    let command = parse_app_command().unwrap_or_else(|e| {
+        eprintln!("paperdoll: {e}");
+        eprintln!("Try `paperdoll --help`.");
+        std::process::exit(2);
+    });
+
+    if let AppCommand::ImportVrma(cli) = command {
+        if let Err(e) = vrma_import::run_import_vrma_cli(cli, &root) {
+            eprintln!("paperdoll import-vrma: {e}");
+            std::process::exit(1);
+        }
+        return;
+    }
+    if matches!(command, AppCommand::FetchDemoMotions) {
+        if let Err(e) = vrma_import::run_fetch_demo_motions_cli(&root) {
+            eprintln!("paperdoll fetch-demo-motions: {e}");
+            std::process::exit(1);
+        }
+        return;
+    }
+    if matches!(command, AppCommand::ImportDemoMotions) {
+        if let Err(e) = vrma_import::run_import_demo_motions_cli(&root, true) {
+            eprintln!("paperdoll import-demo-motions: {e}");
+            std::process::exit(1);
+        }
+        return;
+    }
+
+    let AppCommand::Run(launch) = command else {
+        unreachable!();
+    };
 
     if let Err(e) = launch.ensure_assets_for_launch() {
         eprintln!("paperdoll: {e}");
@@ -58,6 +95,7 @@ fn main() {
     let live_state = LiveState::new();
     let shared_variant = SharedVariantState::new(&launch);
     let shared_expressions = SharedExpressionState::default();
+    let shared_editor = SharedEditorState::new();
 
     info!(
         "paperdoll starting with variant {} (v2 character asset: {})",
@@ -73,7 +111,12 @@ fn main() {
         .insert_resource(ActiveVariant(launch.variant))
         .insert_resource(shared_variant)
         .insert_resource(shared_expressions)
+        .insert_resource(shared_editor.clone())
         .insert_resource(V2ExpressionBindings::default())
+        .insert_resource(bored_play::BoredPlay::from_launch(
+            launch.bored_play_enabled,
+            launch.bored_play_interval_secs,
+        ))
         .add_plugins(
             DefaultPlugins
                 .set(WindowPlugin {
@@ -90,13 +133,18 @@ fn main() {
                     ..default()
                 }),
         )
+        .insert_resource(ViewportCamera::default())
+        .init_resource::<camera_controls::OrbitPointerState>()
+        .add_plugins(EguiPlugin::default())
         .add_plugins(VrmPlugin)
+        .add_plugins(EditorPlugin)
         .add_systems(
             Startup,
             (
                 rig_bridge::setup_rig_core,
                 rig_bridge::spawn_initial_visual,
                 http_api::start_http_server,
+                bored_play::queue_startup_idle,
                 spawn_camera_and_light,
                 spawn_ground,
             )
@@ -105,16 +153,22 @@ fn main() {
         .add_systems(
             Update,
             (
-                // Bind VRM bones before writing poses so startup idle lands on frame 1
-                // after bind (v2 loads asynchronously into T-pose otherwise).
                 v2_vrm::bind_v2_rig_entities,
                 v2_expressions::bind_v2_expressions,
                 v2_expressions::apply_v2_expressions,
                 rig_bridge::apply_rig_commands,
-                rig_bridge::auto_revert_to_idle_pose,
-                rig_bridge::advance_playback,
             )
                 .chain(),
+        )
+        .add_systems(
+            Update,
+            (
+                rig_bridge::auto_revert_to_idle_pose,
+                bored_play::bored_autoplay,
+            )
+                .chain()
+                .after(rig_bridge::apply_rig_commands)
+                .after(editor::sync_editor_http_lock),
         )
         .add_systems(Update, screenshot_bridge::handle_screenshot_requests)
         .run();

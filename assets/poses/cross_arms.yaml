@@ -1,0 +1,30 @@
+name: cross_arms
+description: >
+  Arms folded across the upper chest (right forearm over left). Strong forward
+  shoulder y (~±80) with mild toward-hip z (~±25) and elbow ~±85 — deeper elbows
+  climb the hands to the chin.
+joints:
+  right_shoulder:
+    rotation_deg: { y: 80.0, z: 25.0 }
+  right_elbow:
+    rotation_deg: { z: 85.0 }
+  right_wrist:
+    rotation_deg: { z: -8.0, y: 10.0 }
+  left_shoulder:
+    rotation_deg: { y: -80.0, z: -25.0 }
+  left_elbow:
+    rotation_deg: { z: -85.0 }
+  left_wrist:
+    rotation_deg: { z: 8.0, y: -10.0 }
+  chest:
+    rotation_deg: { x: 6.0 }
+  neck:
+    rotation_deg: { x: -5.0, y: 4.0 }
+camera:
+  yaw_deg: 18.0
+  pitch_deg: 4.0
+  distance: 3.0
+  look_at: [0.0, 1.1, 0.0]
+expressions:
+  relaxed: 0.3
+  angry: 0.12

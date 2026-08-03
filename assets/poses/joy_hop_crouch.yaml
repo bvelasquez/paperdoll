@@ -1,0 +1,42 @@
+name: joy_hop_crouch
+description: Hop landing — bent knees, clasped hands at chest.
+joints:
+  right_shoulder:
+    rotation_deg: { y: 72.0, z: -32.0 }
+  right_elbow:
+    rotation_deg: { z: -92.0 }
+  right_wrist:
+    rotation_deg: { y: -12.0, z: 35.0 }
+  left_shoulder:
+    rotation_deg: { y: -72.0, z: 32.0 }
+  left_elbow:
+    rotation_deg: { z: 92.0 }
+  left_wrist:
+    rotation_deg: { y: 12.0, z: -35.0 }
+  right_index_proximal:
+    rotation_deg: { z: 86.0 }
+  right_index_intermediate:
+    rotation_deg: { z: 90.0 }
+  left_index_proximal:
+    rotation_deg: { z: -86.0 }
+  left_index_intermediate:
+    rotation_deg: { z: -90.0 }
+  left_hip:
+    rotation_deg: { x: -48.0, z: 5.0 }
+  right_hip:
+    rotation_deg: { x: -48.0, z: -5.0 }
+  left_knee:
+    rotation_deg: { x: 92.0 }
+  right_knee:
+    rotation_deg: { x: 92.0 }
+  left_ankle:
+    rotation_deg: { x: 32.0 }
+  right_ankle:
+    rotation_deg: { x: 32.0 }
+  spine:
+    rotation_deg: { x: 14.0 }
+  pelvis:
+    translation: [0.0, -0.06, 0.0]
+expressions:
+  happy: 1.0
+  aa: 0.4

@@ -9,7 +9,8 @@ use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy_vrm1::prelude::RestTransform;
 use paperdoll_rig::{
-    duration_ms_for_speed, Animation, JointId, PlaybackState, PlaybackTarget, Pose, Skeleton,
+    duration_ms_for_speed, Animation, CameraTarget, JointId, PlaybackState, PlaybackTarget, Pose,
+    Skeleton,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -25,7 +26,7 @@ const ROOT_HEIGHT: f32 = 0.96;
 pub(crate) const POSES_DIR: &str = "assets/poses";
 
 /// Where animation YAML files live. See `POSES_DIR`.
-pub(crate) const ANIMATIONS_DIR: &str = "assets/animations";
+pub const ANIMATIONS_DIR: &str = "assets/animations";
 
 /// Pose applied at launch. The skeleton's rest is a T-pose (arms out); we bake this
 /// default in at spawn so the window never flashes arms-out before settling.
@@ -187,6 +188,10 @@ pub enum RigCommand {
 #[derive(Resource)]
 pub struct RigCommandReceiver(pub crossbeam_channel::Receiver<RigCommand>);
 
+/// Sending end of the command channel (HTTP API, bored autoplay, startup idle).
+#[derive(Resource, Clone)]
+pub struct RigCommandSender(pub crossbeam_channel::Sender<RigCommand>);
+
 /// The rig's live interpolation state (`paperdoll_rig::PlaybackState`), advanced once
 /// per frame by [`advance_playback`]. Seeded to the default idle pose in `spawn_rig`
 /// and driven by the HTTP API's `POST /pose`/`POST /animation` thereafter.
@@ -237,6 +242,21 @@ pub struct IdleRevert {
     /// [`auto_revert_to_idle_pose`] returns to the default pose immediately instead of
     /// waiting out `timeout_secs`.
     pending_after_animation: bool,
+}
+
+impl IdleRevert {
+    /// Keep the rig from auto-reverting while the in-app editor is authoring.
+    pub fn hold_for_editor(&mut self, now_secs: f32) {
+        self.last_activity_secs = now_secs;
+        self.reverted = false;
+        self.expect_return_after_animation = false;
+        self.pending_after_animation = false;
+    }
+
+    /// True when the rig is settled on [`Self::default_pose_name`] (safe to bored-autoplay).
+    pub fn is_holding_default_pose(&self) -> bool {
+        self.reverted
+    }
 }
 
 impl Default for IdleRevert {
@@ -808,6 +828,7 @@ pub fn apply_rig_commands(
     speed: Res<TransitionSpeed>,
     mut playback: ResMut<RigPlayback>,
     mut idle: ResMut<IdleRevert>,
+    mut bored: ResMut<crate::bored_play::BoredPlay>,
     mut variant_spawn: VariantSpawnParams,
 ) {
     while let Ok(command) = receiver.0.try_recv() {
@@ -890,6 +911,7 @@ pub fn apply_rig_commands(
                 idle.reverted = false;
                 idle.expect_return_after_animation = false;
                 idle.pending_after_animation = false;
+                bored.note_directed_playback(time.elapsed_secs());
             }
             RigCommand::Animation { name } => {
                 let mut anim = {
@@ -932,6 +954,7 @@ pub fn apply_rig_commands(
                 idle.reverted = false;
                 idle.expect_return_after_animation = true;
                 idle.pending_after_animation = false;
+                bored.note_directed_playback(time.elapsed_secs());
             }
         }
     }
@@ -940,17 +963,21 @@ pub fn apply_rig_commands(
 /// Once the rig has been idle (holding still, no in-progress transition) for
 /// [`IdleRevert::timeout_secs`] since the last command — or immediately after a
 /// one-shot animation finishes (`pending_after_animation`) — starts a transition
-/// back to `IdleRevert::default_pose_name`. Runs after `apply_rig_commands` and
-/// before `advance_playback` each frame (see `main.rs`), so a just-triggered revert
-/// animates starting the same frame.
+/// back to `IdleRevert::default_pose_name` (body + default stage camera when the pose
+/// includes a `camera:` block or full default patch).
 pub fn auto_revert_to_idle_pose(
     time: Res<Time>,
     skeleton: Res<RigSkeleton>,
     poses: Res<PoseLibrary>,
     speed: Res<TransitionSpeed>,
+    editor: Res<crate::editor_state::SharedEditorState>,
     mut playback: ResMut<RigPlayback>,
     mut idle: ResMut<IdleRevert>,
+    mut viewport: ResMut<crate::camera_controls::ViewportCamera>,
 ) {
+    if editor.is_active() {
+        return;
+    }
     if !playback.0.is_idle() || idle.reverted {
         return;
     }
@@ -963,7 +990,7 @@ pub fn auto_revert_to_idle_pose(
     }
     idle.pending_after_animation = false;
 
-    let default_pose = {
+    let mut default_pose = {
         let poses_guard = poses.0.read().unwrap();
         let Some(pose) = poses_guard.get(&idle.default_pose_name) else {
             warn!(
@@ -974,6 +1001,9 @@ pub fn auto_revert_to_idle_pose(
         };
         pose.clone()
     };
+    if default_pose.camera.is_none() {
+        default_pose.camera = Some(CameraTarget::full_default_stage());
+    }
     let from = playback.0.current_snapshot(&skeleton.0);
     let Ok(target_resolved) = default_pose.resolve(&skeleton.0) else {
         warn!(
@@ -993,6 +1023,8 @@ pub fn auto_revert_to_idle_pose(
     playback
         .0
         .interrupt(&skeleton.0, PlaybackTarget::Pose(default_pose), duration_ms);
+    viewport.user_orbiting = false;
+    // Camera follows blended snapshot via sync_viewport_from_choreography during the transition.
     // Mark reverted (rather than bumping last_activity_secs) so this doesn't count as
     // fresh "activity" — if a caller checked, the rig should still read as having been
     // idle since their last real command, just now visually at the default pose.
@@ -1011,7 +1043,6 @@ pub fn advance_playback(
     time: Res<Time>,
     skeleton: Res<RigSkeleton>,
     rig_entities: Res<RigEntities>,
-    camera_entity: Res<ChoreographyCameraEntity>,
     live_state: Res<crate::live_state::LiveState>,
     apply_mode: Res<PoseApplyMode>,
     shared_expressions: Res<crate::v2_expressions::SharedExpressionState>,
@@ -1031,12 +1062,14 @@ pub fn advance_playback(
     } else {
         playback.0.current_snapshot(&skeleton.0)
     };
+    let vrm_local = playback.0.uses_vrm_local_rotations();
 
     for (joint_id, rotation) in &snapshot.joint_rotations {
         if let Some(&entity) = rig_entities.0.get(joint_id) {
             if let Ok(mut transform) = transforms.get_mut(entity) {
                 transform.rotation = match *apply_mode {
                     PoseApplyMode::Absolute => *rotation,
+                    PoseApplyMode::RestRelative if vrm_local => *rotation,
                     PoseApplyMode::RestRelative => {
                         if let Ok(rest) = rest_transforms.get(entity) {
                             rest.0.rotation * *rotation
@@ -1045,6 +1078,19 @@ pub fn advance_playback(
                         }
                     }
                 };
+            }
+        }
+    }
+    // Pelvis root motion from VRMA (offset from hips pose at t=0). Applied on v2 for
+    // the hips bone only; other joint translations remain v1-only cosmetic offsets.
+    if let Some(pelvis_id) = skeleton.0.joint_by_name("pelvis") {
+        if let Some(offset) = snapshot.joint_translations.get(&pelvis_id) {
+            if let Some(&entity) = rig_entities.0.get(&pelvis_id) {
+                if let Ok(mut transform) = transforms.get_mut(entity) {
+                    if let Ok(rest) = rest_transforms.get(entity) {
+                        transform.translation = rest.0.translation + *offset;
+                    }
+                }
             }
         }
     }
@@ -1064,12 +1110,8 @@ pub fn advance_playback(
             }
         }
     }
-    if let Ok(mut cam_tf) = transforms.get_mut(camera_entity.0) {
-        let eye = snapshot.camera.eye();
-        let look_at = snapshot.camera.look_at_vec();
-        *cam_tf = Transform::from_translation(Vec3::new(eye.x, eye.y, eye.z))
-            .looking_at(Vec3::new(look_at.x, look_at.y, look_at.z), Vec3::Y);
-    }
+    // Primary camera transform is driven by [`crate::camera_controls::ViewportCamera`]
+    // (orbit + choreography sync), not written here.
     // Drive VRM face morphs from the same blend as joints/camera (v2).
     shared_expressions.apply_playback_weights(&snapshot.expressions);
     if idle.expect_return_after_animation && playback.0.is_idle() {

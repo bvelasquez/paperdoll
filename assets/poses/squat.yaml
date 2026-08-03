@@ -1,0 +1,43 @@
+name: squat
+description: >
+  Deep squat: hips flexed forward, knees bent, ankles dorsiflexed, slight torso
+  lean. Arms relaxed at the sides. Note: the hip root stays at standing height
+  (rotation-only API) so the silhouette floats above the floor — frame with a
+  lower look_at.
+joints:
+  left_hip:
+    rotation_deg: { x: -52.0, z: 6.0 }
+  right_hip:
+    rotation_deg: { x: -52.0, z: -6.0 }
+  left_knee:
+    rotation_deg: { x: 102.0 }
+  right_knee:
+    rotation_deg: { x: 102.0 }
+  left_ankle:
+    rotation_deg: { x: 32.0 }
+  right_ankle:
+    rotation_deg: { x: 32.0 }
+  spine:
+    rotation_deg: { x: 8.0 }
+  chest:
+    rotation_deg: { x: 4.0 }
+  left_shoulder:
+    rotation_deg: { z: -50.0 }
+  right_shoulder:
+    rotation_deg: { z: 50.0 }
+  left_elbow:
+    rotation_deg: { z: -20.0 }
+  right_elbow:
+    rotation_deg: { z: 20.0 }
+  left_wrist:
+    rotation_deg: { z: 8.0 }
+  right_wrist:
+    rotation_deg: { z: -8.0 }
+camera:
+  yaw_deg: 45.0
+  pitch_deg: 12.0
+  distance: 4.0
+  look_at: [0.0, 0.55, 0.0]
+expressions:
+  relaxed: 0.3
+  ee: 0.1

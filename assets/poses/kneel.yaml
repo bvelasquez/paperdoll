@@ -1,0 +1,40 @@
+name: kneel
+description: >
+  Single-knee kneel: right knee down, left foot planted forward, torso upright.
+  Note: hip root stays at standing height so the figure floats — silhouette and
+  camera framing carry the read.
+joints:
+  right_hip:
+    rotation_deg: { x: -8.0 }
+  right_knee:
+    rotation_deg: { x: 150.0 }
+  right_ankle:
+    rotation_deg: { x: 22.0 }
+  left_hip:
+    rotation_deg: { x: -90.0 }
+  left_knee:
+    rotation_deg: { x: 95.0 }
+  left_ankle:
+    rotation_deg: { x: 8.0 }
+  pelvis:
+    rotation_deg: { x: -6.0 }
+  spine:
+    rotation_deg: { x: 4.0 }
+  left_shoulder:
+    rotation_deg: { z: -52.0 }
+  right_shoulder:
+    rotation_deg: { z: 52.0 }
+  left_elbow:
+    rotation_deg: { z: -14.0 }
+  right_elbow:
+    rotation_deg: { z: 14.0 }
+  neck:
+    rotation_deg: { x: -3.0 }
+camera:
+  yaw_deg: 48.0
+  pitch_deg: 8.0
+  distance: 3.9
+  look_at: [0.0, 0.58, 0.0]
+expressions:
+  relaxed: 0.4
+  happy: 0.2

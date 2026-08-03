@@ -1,0 +1,195 @@
+name: joy_hop_circle
+description: |
+  Clasped hands, happy face, five bouncy hops while the camera orbits a full circle. Leg squash/stretch via joy_hop_crouch/peak; pelvis translation adds vertical pop.
+loop: false
+play_automatically: true
+keyframes:
+- pose: idle
+  joints: null
+  camera: null
+  expressions: null
+  hold: null
+  duration_ms: 220
+  easing: ease_out
+- pose: hands_clasped_chest
+  joints: null
+  camera:
+    yaw_deg: 28.0
+    pitch_deg: 6.0
+    distance: 3.75
+    look_at:
+    - 0.0
+    - 1.02
+    - 0.0
+  expressions: null
+  hold: null
+  duration_ms: 380
+  easing: ease_out
+- pose: joy_hop_crouch
+  joints: null
+  camera:
+    yaw_deg: 28.0
+    pitch_deg: 8.0
+    distance: 3.85
+    look_at:
+    - 0.0
+    - 0.92
+    - 0.0
+  expressions: null
+  hold: null
+  duration_ms: 200
+  easing: ease_in
+- pose: joy_hop_peak
+  joints: null
+  camera:
+    yaw_deg: 98.0
+    pitch_deg: 5.0
+    distance: 3.55
+    look_at:
+    - 0.0
+    - 1.12
+    - 0.0
+  expressions: null
+  hold: null
+  duration_ms: 260
+  easing: ease_out
+- pose: joy_hop_crouch
+  joints: null
+  camera:
+    yaw_deg: 98.0
+    pitch_deg: 7.0
+    distance: 3.8
+    look_at:
+    - 0.0
+    - 0.9
+    - 0.0
+  expressions: null
+  hold: null
+  duration_ms: 185
+  easing: ease_in
+- pose: joy_hop_peak
+  joints: null
+  camera:
+    yaw_deg: 168.0
+    pitch_deg: 5.0
+    distance: 3.5
+    look_at:
+    - 0.0
+    - 1.14
+    - 0.0
+  expressions: null
+  hold: null
+  duration_ms: 255
+  easing: ease_out
+- pose: joy_hop_crouch
+  joints: null
+  camera:
+    yaw_deg: 168.0
+    pitch_deg: 7.0
+    distance: 3.82
+    look_at:
+    - 0.0
+    - 0.9
+    - 0.0
+  expressions: null
+  hold: null
+  duration_ms: 185
+  easing: ease_in
+- pose: joy_hop_peak
+  joints: null
+  camera:
+    yaw_deg: 238.0
+    pitch_deg: 5.0
+    distance: 3.52
+    look_at:
+    - 0.0
+    - 1.13
+    - 0.0
+  expressions: null
+  hold: null
+  duration_ms: 255
+  easing: ease_out
+- pose: joy_hop_crouch
+  joints: null
+  camera:
+    yaw_deg: 238.0
+    pitch_deg: 7.0
+    distance: 3.8
+    look_at:
+    - 0.0
+    - 0.91
+    - 0.0
+  expressions: null
+  hold: null
+  duration_ms: 185
+  easing: ease_in
+- pose: joy_hop_peak
+  joints: null
+  camera:
+    yaw_deg: 308.0
+    pitch_deg: 5.0
+    distance: 3.5
+    look_at:
+    - 0.0
+    - 1.12
+    - 0.0
+  expressions: null
+  hold: null
+  duration_ms: 255
+  easing: ease_out
+- pose: joy_hop_crouch
+  joints: null
+  camera:
+    yaw_deg: 308.0
+    pitch_deg: 7.0
+    distance: 3.82
+    look_at:
+    - 0.0
+    - 0.9
+    - 0.0
+  expressions: null
+  hold: null
+  duration_ms: 185
+  easing: ease_in
+- pose: joy_hop_peak
+  joints: null
+  camera:
+    yaw_deg: 388.0
+    pitch_deg: 6.0
+    distance: 3.48
+    look_at:
+    - 0.0
+    - 1.15
+    - 0.0
+  expressions: null
+  hold: null
+  duration_ms: 270
+  easing: ease_out
+- pose: hands_clasped_chest
+  joints: null
+  camera:
+    yaw_deg: 35.5
+    pitch_deg: 8.0
+    distance: 3.7
+    look_at:
+    - 0.0
+    - 1.05
+    - 0.0
+  expressions: null
+  hold: null
+  duration_ms: 420
+  easing: ease_in_out
+- pose: idle
+  joints: null
+  camera:
+    yaw_deg: 35.5
+    pitch_deg: 9.2
+    distance: 4.36
+    look_at:
+    - 0.0
+    - 0.9
+    - 0.0
+  expressions: null
+  hold: null
+  duration_ms: 520
+  easing: ease_in_out

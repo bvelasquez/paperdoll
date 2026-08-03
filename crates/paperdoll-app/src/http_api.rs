@@ -12,10 +12,17 @@
 //! handlers write directly into the `Arc<RwLock<_>>` shared with `PoseLibrary`/
 //! `AnimationLibrary` instead of round-tripping through a command + system.
 
+use crate::agent_capabilities::{
+    build_animation_catalog, build_example_animations, build_example_poses, build_pose_catalog,
+    camera_framing, joint_target_shape, motion_sources, timing_guide, AGENT_SYSTEM_PROMPT,
+};
+use crate::editor_state::SharedEditorState;
 use crate::live_state::{LiveState, LiveStateSnapshot};
 use crate::rig_bridge::{
-    AnimationLibrary, PoseLibrary, RigCommand, RigCommandReceiver, ANIMATIONS_DIR, POSES_DIR,
+    AnimationLibrary, PoseLibrary, RigCommand, RigCommandReceiver, RigCommandSender,
+    ANIMATIONS_DIR, POSES_DIR,
 };
+use crate::vrma_import::{import_all_demo_motions, import_vrma_file, safe_assets_relative_path};
 use crate::screenshot_bridge::{ScreenshotRequest, ScreenshotRequestReceiver};
 use crate::v2_expressions::SharedExpressionState;
 use crate::variant::{DollVariant, SharedVariantState};
@@ -28,8 +35,9 @@ use axum::{
     Json, Router,
 };
 use bevy::prelude::*;
-use paperdoll_rig::{resolve_animation, Animation, AnimationFile, Easing, Pose, Skeleton};
+use paperdoll_rig::{resolve_animation, Animation, AnimationFile, Easing, Pose, Skeleton, VrmaImportConfig};
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
@@ -52,6 +60,16 @@ struct ApiState {
     expressions: SharedExpressionState,
     commands: crossbeam_channel::Sender<RigCommand>,
     screenshots: crossbeam_channel::Sender<ScreenshotRequest>,
+    editor: SharedEditorState,
+}
+
+fn editor_conflict() -> (StatusCode, Json<serde_json::Value>) {
+    (
+        StatusCode::CONFLICT,
+        error_body(
+            "in-app pose/animation editor is open — close it (F2) before triggering playback",
+        ),
+    )
 }
 
 #[derive(serde::Deserialize)]
@@ -167,6 +185,9 @@ async fn post_pose(
     State(state): State<ApiState>,
     Json(req): Json<PoseCommandRequest>,
 ) -> (StatusCode, Json<serde_json::Value>) {
+    if state.editor.is_active() {
+        return editor_conflict();
+    }
     if !state.poses.read().unwrap().contains_key(&req.name) {
         return (
             StatusCode::NOT_FOUND,
@@ -187,6 +208,9 @@ async fn post_animation(
     State(state): State<ApiState>,
     Json(req): Json<AnimationCommandRequest>,
 ) -> (StatusCode, Json<serde_json::Value>) {
+    if state.editor.is_active() {
+        return editor_conflict();
+    }
     if !state.animations.read().unwrap().contains_key(&req.name) {
         return (
             StatusCode::NOT_FOUND,
@@ -315,6 +339,132 @@ async fn post_register_animation(
     }
 }
 
+#[derive(serde::Deserialize)]
+struct ImportVrmaRequest {
+    /// Path relative to `assets/`, e.g. `motions/Clapping.vrma`.
+    path: String,
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    sample_interval_ms: Option<u32>,
+    #[serde(default)]
+    write_yaml: Option<bool>,
+    #[serde(default)]
+    play: Option<bool>,
+    #[serde(default)]
+    r#loop: Option<bool>,
+}
+
+/// Import a `.vrma` from `assets/motions/` (or another path under `assets/motions/`),
+/// register it in the live animation library, and optionally write YAML + trigger playback.
+async fn post_import_vrma(
+    State(state): State<ApiState>,
+    Json(req): Json<ImportVrmaRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let rel = match safe_assets_relative_path(&req.path) {
+        Ok(p) => p,
+        Err(e) => return (StatusCode::BAD_REQUEST, error_body(e)),
+    };
+    let rel_str = rel.to_string_lossy();
+    if !rel_str.starts_with("motions/") {
+        return (
+            StatusCode::BAD_REQUEST,
+            error_body(format!(
+                "import path must be under `motions/` (relative to assets/), got '{rel_str}'"
+            )),
+        );
+    }
+    let vrma_path = Path::new("assets").join(&rel);
+    if !vrma_path.is_file() {
+        return (
+            StatusCode::NOT_FOUND,
+            error_body(format!("VRMA file not found at '{}'", vrma_path.display())),
+        );
+    }
+
+    let mut config = VrmaImportConfig::from_path_stem(&vrma_path);
+    if let Some(name) = req.name {
+        config.name = paperdoll_rig::sanitize_asset_filename(&name);
+    }
+    if let Some(ms) = req.sample_interval_ms {
+        config.sample_interval_ms = ms.max(1);
+    }
+    if let Some(looping) = req.r#loop {
+        config.looping = looping;
+    }
+    let write_yaml = req.write_yaml.unwrap_or(true);
+
+    let outcome = match import_vrma_file(
+        &vrma_path,
+        config,
+        Path::new(ANIMATIONS_DIR),
+        write_yaml,
+    ) {
+        Ok(o) => o,
+        Err(e) => return (StatusCode::BAD_REQUEST, error_body(e.to_string())),
+    };
+
+    let anim_name = outcome.animation.name.clone();
+    let replaced = state
+        .animations
+        .write()
+        .unwrap()
+        .insert(anim_name.clone(), outcome.animation)
+        .is_some();
+
+    if req.play.unwrap_or(false) {
+        if state.editor.is_active() {
+            return editor_conflict();
+        }
+        if state.commands.send(RigCommand::Animation { name: anim_name.clone() }).is_err() {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                error_body("failed to queue animation playback"),
+            );
+        }
+    }
+
+    (
+        if replaced {
+            StatusCode::OK
+        } else {
+            StatusCode::CREATED
+        },
+        Json(serde_json::json!({
+            "animation": anim_name,
+            "duration_ms": outcome.result.duration_ms,
+            "keyframes": outcome.result.keyframe_count,
+            "mapped_bones": outcome.result.mapped_bone_count,
+            "yaml": outcome.yaml_path.as_ref().map(|p| p.display().to_string()),
+            "played": req.play.unwrap_or(false),
+        })),
+    )
+}
+
+/// Fetch catalog demos (if needed), import to YAML, and register all `vrma_*` animations.
+async fn post_import_demo_motions(
+    State(state): State<ApiState>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let outcomes = match import_all_demo_motions(Path::new("."), true) {
+        Ok(o) => o,
+        Err(e) => return (StatusCode::BAD_REQUEST, error_body(e)),
+    };
+    let mut names = Vec::new();
+    for outcome in outcomes {
+        let name = outcome.animation.name.clone();
+        state
+            .animations
+            .write()
+            .unwrap()
+            .insert(name.clone(), outcome.animation);
+        names.push(name);
+    }
+    (
+        StatusCode::CREATED,
+        Json(serde_json::json!({ "animations": names })),
+    )
+}
+
 /// Captures the primary window and returns it as a PNG — lets a caller (human or
 /// agent) see the rig's current pose without needing eyes on the actual window,
 /// closing the loop with `POST /pose`/`POST /animation` entirely over HTTP. The
@@ -364,53 +514,6 @@ async fn get_screenshot(State(state): State<ApiState>) -> Response {
     }
 }
 
-/// Curated pose-board names surfaced in `GET /capabilities` `example_poses`. Each
-/// entry must exist in the live library (shipped YAML or runtime-registered); missing
-/// names are skipped so a caller never sees stale joint values that don't match
-/// `GET /poses` / `POST /pose`.
-const EXAMPLE_POSE_BOARD: &[(&str, &str)] = &[
-    (
-        "wave",
-        "right-arm raise: from T-pose, right_shoulder.z is NEGATIVE to lift overhead \
-(positive z lowers the right arm toward the hip). Elbow z bends the forearm up \
-for a cartoon wave; left arm lowered with left_shoulder.z negative.",
-    ),
-    (
-        "hands_on_hips",
-        "mirrored-sign convention: equal magnitude, opposite sign — \
-right_shoulder.z=+45 with left_shoulder.z=-45 puts a hand on each hip.",
-    ),
-    (
-        "idle",
-        "asymmetric full-body pose (arm + knee + pelvis) — also the IdleRevert default \
-after inactivity. Clears VRM expression weights so leftover morphs fade out.",
-    ),
-    (
-        "victory",
-        "both arms raised: right_shoulder.z negative, left_shoulder.z positive \
-(mirrored raise from T-pose).",
-    ),
-    (
-        "think",
-        "shoulder y (forward/back) composed with z (raise) plus a deep elbow bend \
-to bring the hand near the head.",
-    ),
-    (
-        "shrug",
-        "clavicle + mirrored shoulder/elbow rotations for a shoulders-up shrug.",
-    ),
-    (
-        "point",
-        "arm forward toward camera (shoulder y) with a frontal camera frame — \
-pair with point_hero animation for a push-in. Index finger extended; other digits curled.",
-    ),
-    (
-        "peace_sign_right",
-        "v2 finger exemplar: right index + middle extended, ring/little + thumb curled. \
-Author finger joints (*_proximal/*_intermediate/*_distal) the same way as body joints.",
-    ),
-];
-
 /// Self-describing capabilities document: every endpoint, its request/response shape,
 /// the full list of valid joint names, and the full list of valid easing values — the
 /// idea being an LLM/agent that has never seen this codebase can `GET /capabilities`
@@ -429,21 +532,15 @@ async fn get_capabilities(State(state): State<ApiState>) -> Json<serde_json::Val
         .map(|e| serde_json::to_value(e).unwrap())
         .collect();
 
-    let example_poses: Vec<serde_json::Value> = {
+    let (example_poses, example_animations, pose_catalog, animation_catalog) = {
         let poses = state.poses.read().unwrap();
-        EXAMPLE_POSE_BOARD
-            .iter()
-            .filter_map(|(name, demonstrates)| {
-                let pose = poses.get(*name)?;
-                Some(serde_json::json!({
-                    "name": pose.name,
-                    "demonstrates": demonstrates,
-                    "description": pose.description,
-                    "joints": pose.joints,
-                    "expressions": pose.expressions,
-                }))
-            })
-            .collect()
+        let animations = state.animations.read().unwrap();
+        (
+            build_example_poses(&poses),
+            build_example_animations(&animations, &poses),
+            build_pose_catalog(&poses),
+            build_animation_catalog(&animations, &poses),
+        )
     };
 
     Json(serde_json::json!({
@@ -455,13 +552,21 @@ async fn get_capabilities(State(state): State<ApiState>) -> Json<serde_json::Val
             required. Switch visuals with GET/POST /variant.",
         "variant": state.variant.snapshot(),
         "expressions": state.expressions.snapshot(),
+        "in_app_editor": {
+            "toggle": "F2 in the paperdoll window",
+            "pose_authoring": "Live preview, joint tree + Euler sliders, capture scene, save to assets/poses/*.yaml",
+            "animation_authoring": "Keyframe list, scrub/play/loop preview, save to assets/animations/*.yaml",
+            "http_while_open": "POST /pose and POST /animation return 409 Conflict; registration endpoints unchanged"
+        },
         "v2": {
             "description": "Default visual. VRM 1.0 skinned mesh with 65 shared \
                 joints (body + face cosmetics + fingers). Drive fingers via pose \
                 joints (*_thumb_*, *_index_*, *_middle_*, *_ring_*, *_little_*). \
                 Drive face via pose/keyframe `expressions` weights (synced with \
-                motion) or GET/POST /expressions. Prefer finger_emote, \
-                peace_sign_right, and happy_bounce as authoring models.",
+                motion) or                 GET/POST /expressions. Authoring models: wave_animation, say_yes, \
+                say_no, happy_bounce, finger_emote, point_hero, orbit_victory. \
+                Full-body mocap: play vrma_clapping / vrma_jump / vrma_goodbye or \
+                POST /import/vrma — do not hand-write quaternion clips.",
             "finger_joints": joint_names.iter().filter(|n| {
                 n.contains("_thumb_") || n.contains("_index_") || n.contains("_middle_")
                     || n.contains("_ring_") || n.contains("_little_")
@@ -505,11 +610,21 @@ async fn get_capabilities(State(state): State<ApiState>) -> Json<serde_json::Val
                 "z_sign_from_t_pose": "RIGHT arm: negative z raises overhead, positive z \
                     lowers toward the hip/side. LEFT arm: positive z raises, negative z \
                     lowers. So a two-armed overhead raise is right.z=-80, left.z=+80 \
-                    (see `victory`). A right-arm wave uses right_shoulder.z around -55.",
+                    (see `victory`). A right-arm cartoon wave uses mild raise \
+                    right_shoulder.z around -22 (not -55) plus elbow bend — see `wave`.",
                 "y_rotation_deg": "swings the limb forward/backward, toward or away \
-                    from the camera — real, but subtle from a front-ish camera angle. \
-                    Compose with z when you need a hand in front of the torso/face \
-                    (see `think`).",
+                    from the camera. Compose with z when you need a hand in front of \
+                    the torso/face (see `think`, `point`).",
+                "y_sign_from_t_pose": "RIGHT arm: POSITIVE y swings forward toward the \
+                    camera / in front of the torso; NEGATIVE y swings behind the body. \
+                    `point` uses right_shoulder.y ≈ +75 (forward); y ≈ -75 points \
+                    backwards. `think` also uses positive y to bring the hand forward \
+                    to the face. Always verify forward/back with a side camera \
+                    (yaw ≈ 70–80) — front views foreshorten and lie.",
+                "wave_vs_think_pitfall": "Do not combine a large negative right_shoulder.z \
+                    (high raise) with a deep negative elbow z — that folds the hand onto \
+                    the head (think). A readable wave keeps shoulder z mild (~-20), \
+                    elbow ~-70, and positive shoulder y so the palm faces out.",
             },
             "leg_chain": {
                 "offset_direction": "local Y (hip/knee/ankle all extend downward \
@@ -526,6 +641,11 @@ async fn get_capabilities(State(state): State<ApiState>) -> Json<serde_json::Val
                 — pelvis x also tips the legs (hips are pelvis children) and reads as \
                 the whole figure tipping over. pelvis.z is a side-to-side hip cock \
                 (see `idle`).",
+            "head_chain": "neck is the primary head joint. rotation_deg.y turns the \
+                face left/right (see head_turn_left/right ≈ ±42°). rotation_deg.x nods \
+                chin down (+) or up (−) with head_nod_down/up. Compose head animations \
+                from those pose names (say_yes, say_no) instead of guessing neck angles. \
+                Head poses ship with face close-up camera — copy their camera blocks.",
             "face_chain": "On v2 (default): put VRM morph weights in pose/keyframe \
                 `expressions` (happy, blink, blinkLeft, blinkRight, aa/ih/ou/ee/oh, \
                 angry, sad, relaxed — see GET /expressions). Weights blend with the \
@@ -558,9 +678,24 @@ async fn get_capabilities(State(state): State<ApiState>) -> Json<serde_json::Val
                 magnitude, and every body is a different scale.",
             "worked_examples": "See example_poses below — each is a live pose from \
                 the library (same joints POST /pose will play), chosen to demonstrate \
-                one rule above concretely.",
+                one rule above concretely. Agents authoring new poses should COPY \
+                magnitudes from these maps rather than inventing angles from memory.",
+            "agent_workflow": "1) GET /capabilities (agent_system_prompt + posing_guide + \
+                example_poses + example_animations + timing_guide + camera_framing). \
+                2) Prefer referencing existing pose names in animations. 3) If inventing \
+                joints, start from a close example_pose and tweak. 4) POST /poses, \
+                POST /pose, GET /screenshot — use side camera (yaw≈75) for forward/back. \
+                5) If an animation references an updated pose, re-POST /animations. \
+                6) Full-body motion: POST /animation vrma_* or POST /import/vrma.",
         },
+        "timing_guide": timing_guide(),
+        "camera_framing": camera_framing(),
+        "motion_sources": motion_sources(),
+        "agent_system_prompt": AGENT_SYSTEM_PROMPT,
         "example_poses": example_poses,
+        "example_animations": example_animations,
+        "pose_catalog": pose_catalog,
+        "animation_catalog": animation_catalog,
         "camera_shape": {
             "yaw_deg": "number, optional — horizontal orbit around look_at (degrees). \
                 0 looks along +Z; positive toward +X. Omitted = keep current yaw.",
@@ -585,15 +720,7 @@ async fn get_capabilities(State(state): State<ApiState>) -> Json<serde_json::Val
             "name": "string, required — unique identifier used to reference this pose",
             "description": "string, optional",
             "joints": {
-                "<joint_name>": {
-                    "rotation_deg": {
-                        "x": "number, optional, default 0",
-                        "y": "number, optional, default 0",
-                        "z": "number, optional, default 0",
-                    },
-                    "translation": "[x, y, z] number array, optional — replaces the \
-                        joint's rest translation entirely rather than offsetting it",
-                },
+                "<joint_name>": joint_target_shape(),
             },
             "camera": "object, optional — see `camera_shape` above",
             "expressions": "object, optional — VRM morph preset → weight in [0,1] \
@@ -607,15 +734,23 @@ async fn get_capabilities(State(state): State<ApiState>) -> Json<serde_json::Val
         "animation_shape": {
             "name": "string, required",
             "description": "string, optional",
+            "vrm_local_rotations": "boolean, optional, default false — when true, joint \
+                targets use rotation_quat (glTF local) from VRMA import; Euler \
+                rotation_deg in hand-authored clips must leave this false.",
             "loop": "boolean, optional, default false — authoring hint for sequences \
                 that could repeat; POST /animation always plays one cycle then returns \
                 to the default idle pose (YAML loop is ignored at trigger time)",
+            "play_automatically": "boolean, optional, default false — when true, the \
+                doll window may pick this animation at random while idle (bored autoplay; \
+                interval via PAPERDOLL_BORED_INTERVAL_SECS)",
             "keyframes": [
                 {
                     "pose": "string, optional — a name from GET /poses, resolved at \
-                        registration time",
-                    "joints": "object, optional — inline joint targets, same shape as \
-                        a pose's `joints` field",
+                        registration time (joint values are copied into the animation). \
+                        If you later POST /poses to update a referenced pose, re-POST \
+                        this animation too or it keeps the old joint values.",
+                    "joints": "object, optional — inline joint targets; same shape as \
+                        a pose's `joints` field (see joint_target_shape in pose_shape)",
                     "camera": "object, optional — see `camera_shape`; overlays the \
                         referenced pose's camera when both are set",
                     "expressions": "object, optional — VRM morph weights; overlays the \
@@ -639,11 +774,10 @@ async fn get_capabilities(State(state): State<ApiState>) -> Json<serde_json::Val
             {
                 "method": "GET",
                 "path": "/capabilities",
-                "description": "This document — includes `posing_guide` (how \
-                    rotation axes actually behave per joint chain, since it isn't \
-                    guessable from joint names alone), `camera_shape` (orbit \
-                    pan/tilt/yaw/zoom), and `example_poses` (live from the pose \
-                    library).",
+                "description": "This document — includes `agent_system_prompt`, \
+                    `posing_guide`, `timing_guide`, `camera_framing`, `motion_sources`, \
+                    `example_poses`, `example_animations`, `pose_catalog`, and \
+                    `animation_catalog`.",
             },
             {
                 "method": "GET",
@@ -770,6 +904,27 @@ async fn get_capabilities(State(state): State<ApiState>) -> Json<serde_json::Val
                     {\"animation\": \"<name>\"}; 400 {\"error\": \"...\"} if a \
                     keyframe's pose reference or inline joint name is invalid",
             },
+            {
+                "method": "POST",
+                "path": "/import/vrma",
+                "description": "Import a VRM Animation (.vrma) from assets/motions/ \
+                    into sampled YAML keyframes, register in the live library, and \
+                    optionally play. Body + VRM expression curves are sampled; camera \
+                    is not imported (add in the editor or YAML).",
+                "request_body": "{ \"path\": \"motions/Clapping.vrma\", \"name\": \
+                    \"optional_id\", \"sample_interval_ms\": 100, \"write_yaml\": true, \
+                    \"play\": false, \"loop\": false }",
+                "response_body": "201 Created {\"animation\",\"duration_ms\",\"keyframes\",\
+                    \"mapped_bones\",\"yaml\",\"played\"}; 404 if file missing; 409 if \
+                    play:true while editor open",
+            },
+            {
+                "method": "POST",
+                "path": "/import/demo-motions",
+                "description": "Fetch built-in VRMA demos, write YAML, register \
+                    vrma_clapping / vrma_jump / vrma_goodbye (no playback).",
+                "response_body": "201 {\"animations\": [\"vrma_clapping\", ...]}",
+            },
         ],
     }))
 }
@@ -784,9 +939,11 @@ pub fn start_http_server(
     live_state: Res<LiveState>,
     variant: Res<SharedVariantState>,
     expressions: Res<SharedExpressionState>,
+    editor: Res<SharedEditorState>,
 ) {
     let (tx, rx) = crossbeam_channel::unbounded::<RigCommand>();
     commands.insert_resource(RigCommandReceiver(rx));
+    commands.insert_resource(RigCommandSender(tx.clone()));
 
     let (screenshot_tx, screenshot_rx) = crossbeam_channel::unbounded::<ScreenshotRequest>();
     commands.insert_resource(ScreenshotRequestReceiver(screenshot_rx));
@@ -799,6 +956,7 @@ pub fn start_http_server(
         expressions: expressions.clone(),
         commands: tx,
         screenshots: screenshot_tx,
+        editor: editor.clone(),
     };
 
     std::thread::Builder::new()
@@ -815,6 +973,8 @@ pub fn start_http_server(
                     .route("/animation", post(post_animation))
                     .route("/poses", get(get_poses).post(post_register_pose))
                     .route("/animations", get(get_animations).post(post_register_animation))
+                    .route("/import/vrma", post(post_import_vrma))
+                    .route("/import/demo-motions", post(post_import_demo_motions))
                     .route("/screenshot", get(get_screenshot))
                     .with_state(state);
                 let listener = tokio::net::TcpListener::bind(HTTP_ADDR)

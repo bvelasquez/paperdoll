@@ -56,3 +56,8 @@ joints:
   left_little_proximal:
     rotation_deg: { z: 10.0 }
 expressions: {}
+camera:
+  yaw_deg: 35.5
+  pitch_deg: 9.2
+  distance: 4.36
+  look_at: [0.0, 0.9, 0.0]

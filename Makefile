@@ -13,15 +13,23 @@ SHAREDIR := $(PREFIX)/share/paperdoll
 BIN      := paperdoll
 CARGO_BIN := target/release/paperdoll-app
 
-.PHONY: all build install uninstall clean test
+.PHONY: all build install uninstall clean test fetch-demos import-demos demos
 
 all: build
 
 build:
 	cargo build --release -p paperdoll-app
 
-test:
+test: fetch-demos
 	cargo test --workspace
+
+fetch-demos:
+	cargo run -p paperdoll-app -- fetch-demo-motions
+
+import-demos: fetch-demos
+	cargo run -p paperdoll-app -- import-demo-motions
+
+demos: import-demos
 
 install: build
 	install -d "$(DESTDIR)$(BINDIR)" "$(DESTDIR)$(SHAREDIR)"

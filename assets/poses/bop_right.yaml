@@ -1,0 +1,60 @@
+name: bop_right
+description: >
+  Idol bop beat 2 (mirror of bop_left): fists up at chest height, elbows out,
+  body S-curved with weight on right hip, head tilted cute. Used by anime_idol_dance.
+joints:
+  right_shoulder:
+    rotation_deg: { y: -30.0, z: -22.0 }
+  right_elbow:
+    rotation_deg: { z: 85.0 }
+  right_wrist:
+    rotation_deg: { z: -8.0 }
+  left_shoulder:
+    rotation_deg: { y: 30.0, z: 22.0 }
+  left_elbow:
+    rotation_deg: { z: -85.0 }
+  left_wrist:
+    rotation_deg: { z: 8.0 }
+  right_index_proximal:
+    rotation_deg: { z: -80.0 }
+  right_index_intermediate:
+    rotation_deg: { z: -90.0 }
+  right_middle_proximal:
+    rotation_deg: { z: -85.0 }
+  right_middle_intermediate:
+    rotation_deg: { z: -95.0 }
+  right_ring_proximal:
+    rotation_deg: { z: -85.0 }
+  right_ring_intermediate:
+    rotation_deg: { z: -95.0 }
+  right_little_proximal:
+    rotation_deg: { z: -80.0 }
+  right_little_intermediate:
+    rotation_deg: { z: -90.0 }
+  left_index_proximal:
+    rotation_deg: { z: 80.0 }
+  left_index_intermediate:
+    rotation_deg: { z: 90.0 }
+  left_middle_proximal:
+    rotation_deg: { z: 85.0 }
+  left_middle_intermediate:
+    rotation_deg: { z: 95.0 }
+  left_ring_proximal:
+    rotation_deg: { z: 85.0 }
+  left_ring_intermediate:
+    rotation_deg: { z: 95.0 }
+  left_little_proximal:
+    rotation_deg: { z: 80.0 }
+  left_little_intermediate:
+    rotation_deg: { z: 90.0 }
+  pelvis:
+    rotation_deg: { z: -8.0 }
+  chest:
+    rotation_deg: { z: 10.0 }
+  neck:
+    rotation_deg: { z: -14.0 }
+  head:
+    rotation_deg: { z: 6.0 }
+expressions:
+  happy: 0.7
+  relaxed: 0.2

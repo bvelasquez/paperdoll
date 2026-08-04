@@ -18,7 +18,7 @@ fn repo_root() -> &'static Path {
 fn repo_pose_and_animation_assets_load_and_resolve() {
     let root = repo_root();
     let poses = load_poses_from_dir(&root.join("assets/poses")).expect("poses should load");
-    assert_eq!(poses.len(), 25);
+    assert_eq!(poses.len(), 28);
     assert!(poses.contains_key("t_pose"));
     assert!(poses.contains_key("wave"));
     assert!(poses.contains_key("wave_return"));
@@ -32,10 +32,13 @@ fn repo_pose_and_animation_assets_load_and_resolve() {
     assert!(poses.contains_key("hands_clasped_chest"));
     assert!(poses.contains_key("joy_hop_crouch"));
     assert!(poses.contains_key("joy_hop_peak"));
+    assert!(poses.contains_key("bop_left"));
+    assert!(poses.contains_key("bop_right"));
+    assert!(poses.contains_key("kira_kira"));
 
     let animations = load_animations_from_dir(&root.join("assets/animations"), &poses)
         .expect("animations should load and resolve pose references");
-    assert_eq!(animations.len(), 14);
+    assert_eq!(animations.len(), 15);
     assert!(animations.contains_key("vrma_clapping"));
     assert!(animations.contains_key("vrma_jump"));
     assert!(animations.contains_key("vrma_goodbye"));
@@ -48,6 +51,7 @@ fn repo_pose_and_animation_assets_load_and_resolve() {
     assert!(animations.contains_key("finger_emote"));
     assert!(animations.contains_key("happy_bounce"));
     assert!(animations.contains_key("joy_hop_circle"));
+    assert!(animations.contains_key("anime_idol_dance"));
 
     let skeleton = Skeleton::humanoid_default();
     for pose in poses.values() {

@@ -6,8 +6,12 @@ play_automatically: true
 keyframes:
 - pose: idle
   joints: null
-  camera: null
-  expressions: null
+  camera:
+    yaw_deg: null
+    pitch_deg: null
+    distance: null
+    look_at: null
+  expressions: {}
   hold: null
   duration_ms: 220
   easing: ease_out

@@ -1,107 +1,180 @@
 name: anime_idol_dance
-description: >
-  Cute anime idol routine: four bopping beats (fists up, S-curve body) →
-  kira kira sparkle with raised open hands + morph blink beat →
-  overhead V-sign close-up → hop (crouch→peak) → right fist pump →
-  clasped-hands ending with a wink, then settle to idle.
+description: |
+  Cute anime idol routine: four bopping beats (fists up, S-curve body) → kira kira sparkle with raised open hands + morph blink beat → overhead V-sign close-up → hop (crouch→peak) → right fist pump → clasped-hands ending with a wink, then settle to idle.
 loop: false
 play_automatically: true
 keyframes:
 - pose: idle
+  joints: null
   camera:
     yaw_deg: 35.5
     pitch_deg: 9.2
     distance: 4.36
-    look_at: [0.0, 0.9, 0.0]
+    look_at:
+    - 0.0
+    - 0.9
+    - 0.0
+  expressions: null
+  hold: null
   duration_ms: 180
   easing: ease_out
 - pose: bop_left
+  joints: null
   camera:
     yaw_deg: 25.0
     pitch_deg: 8.0
     distance: 4.0
-    look_at: [0.0, 0.92, 0.0]
+    look_at:
+    - 0.0
+    - 0.92
+    - 0.0
+  expressions: null
+  hold: null
   duration_ms: 300
   easing: ease_out
 - pose: bop_right
+  joints: null
+  camera: null
+  expressions: null
+  hold: null
   duration_ms: 300
   easing: ease_in_out
 - pose: bop_left
+  joints: null
+  camera: null
+  expressions: null
+  hold: null
   duration_ms: 300
   easing: ease_in_out
 - pose: bop_right
+  joints: null
+  camera: null
+  expressions: null
+  hold: null
   duration_ms: 300
   easing: ease_in_out
 - pose: kira_kira
+  joints: null
   camera:
     yaw_deg: 20.0
     pitch_deg: 10.0
     distance: 3.7
-    look_at: [0.0, 1.05, 0.0]
+    look_at:
+    - 0.0
+    - 1.05
+    - 0.0
+  expressions: null
+  hold: null
   duration_ms: 420
   easing: ease_out
-- expressions:
+- pose: null
+  joints: null
+  camera: null
+  expressions:
     blink: 1.0
     happy: 1.0
   hold: true
   duration_ms: 90
   easing: step
-- expressions:
-    blink: 0.0
+- pose: null
+  joints: null
+  camera: null
+  expressions:
     happy: 1.0
+    blink: 0.0
   hold: true
   duration_ms: 110
   easing: ease_out
 - pose: peace_sign_right
+  joints: null
   camera:
     yaw_deg: 15.0
     pitch_deg: 6.0
     distance: 2.6
-    look_at: [0.15, 1.25, 0.0]
+    look_at:
+    - 0.15
+    - 1.25
+    - 0.0
+  expressions: null
+  hold: null
   duration_ms: 420
   easing: ease_out
 - pose: joy_hop_crouch
+  joints: null
   camera:
     yaw_deg: 22.0
     pitch_deg: 8.0
     distance: 3.9
-    look_at: [0.0, 0.9, 0.0]
+    look_at:
+    - 0.0
+    - 0.9
+    - 0.0
+  expressions: null
+  hold: null
   duration_ms: 200
   easing: ease_in
 - pose: joy_hop_peak
+  joints: null
   camera:
     yaw_deg: 22.0
     pitch_deg: 6.0
     distance: 3.7
-    look_at: [0.0, 1.12, 0.0]
+    look_at:
+    - 0.0
+    - 1.12
+    - 0.0
+  expressions: null
+  hold: null
   duration_ms: 280
   easing: ease_out
 - pose: fist_pump_right
+  joints: null
   camera:
     yaw_deg: 30.0
     pitch_deg: 8.0
     distance: 3.9
-    look_at: [0.0, 1.0, 0.0]
+    look_at:
+    - 0.0
+    - 1.0
+    - 0.0
+  expressions: null
+  hold: null
   duration_ms: 350
   easing: ease_out
 - pose: hands_clasped_chest
+  joints: null
   camera:
     yaw_deg: 22.0
     pitch_deg: 5.0
     distance: 3.4
-    look_at: [0.0, 0.98, 0.0]
+    look_at:
+    - 0.0
+    - 0.98
+    - 0.0
+  expressions: null
+  hold: null
   duration_ms: 380
   easing: ease_out
-- expressions:
+- pose: null
+  joints: null
+  camera: null
+  expressions:
     blinkLeft: 1.0
     happy: 0.9
+  hold: null
   duration_ms: 320
   easing: ease_in_out
 - pose: idle
+  joints: null
   camera:
     yaw_deg: 35.5
     pitch_deg: 9.2
     distance: 4.36
-    look_at: [0.0, 0.9, 0.0]
+    look_at:
+    - 0.0
+    - 0.9
+    - 0.0
+  expressions: null
+  hold: null
   duration_ms: 550
   easing: ease_in_out

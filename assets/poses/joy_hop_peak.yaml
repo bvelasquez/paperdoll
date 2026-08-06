@@ -1,43 +1,260 @@
 name: joy_hop_peak
 description: Hop apex — legs extend, clasped hands bounce at chest.
 joints:
-  right_shoulder:
-    rotation_deg: { y: 70.0, z: -36.0 }
-  right_elbow:
-    rotation_deg: { z: -88.0 }
-  right_wrist:
-    rotation_deg: { y: -10.0, z: 32.0 }
-  left_shoulder:
-    rotation_deg: { y: -70.0, z: 36.0 }
-  left_elbow:
-    rotation_deg: { z: 88.0 }
-  left_wrist:
-    rotation_deg: { y: 10.0, z: -32.0 }
-  right_index_proximal:
-    rotation_deg: { z: 86.0 }
-  right_index_intermediate:
-    rotation_deg: { z: 90.0 }
-  left_index_proximal:
-    rotation_deg: { z: -86.0 }
-  left_index_intermediate:
-    rotation_deg: { z: -90.0 }
-  left_hip:
-    rotation_deg: { x: -4.0 }
-  right_hip:
-    rotation_deg: { x: -4.0 }
-  left_knee:
-    rotation_deg: { x: 8.0 }
-  right_knee:
-    rotation_deg: { x: 8.0 }
-  spine:
-    rotation_deg: { x: -12.0 }
-  chest:
-    rotation_deg: { x: -6.0 }
-  neck:
-    rotation_deg: { x: -6.0 }
+  right_little_distal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 70.0
+    translation: null
+  right_ring_intermediate:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 95.0
+    translation: null
+  right_thumb_metacarpal:
+    rotation_deg:
+      x: 52.0
+      y: 44.0
+      z: 6.0
+    translation: null
+  right_middle_distal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 70.0
+    translation: null
+  left_index_distal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 70.0
+    translation: null
+  left_thumb_proximal:
+    rotation_deg:
+      x: 24.0
+      y: 32.0
+      z: 38.0
+    translation: null
   pelvis:
-    translation: [0.0, 0.12, 0.0]
+    rotation_deg: null
+    translation:
+    - 0.0
+    - 0.12
+    - 0.0
+  right_thumb_distal:
+    rotation_deg:
+      x: 0.0
+      y: 14.0
+      z: 44.0
+    translation: null
+  right_middle_proximal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 85.0
+    translation: null
+  left_little_distal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 70.0
+    translation: null
+  right_ring_distal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 70.0
+    translation: null
+  right_index_proximal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 80.0
+    translation: null
+  left_middle_distal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 70.0
+    translation: null
+  right_shoulder:
+    rotation_deg:
+      x: -23.43477
+      y: 42.62571
+      z: -15.856047
+    translation: null
+  left_knee:
+    rotation_deg:
+      x: 8.0
+      y: 0.0
+      z: 0.0
+    translation: null
+  left_ring_intermediate:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 95.0
+    translation: null
+  left_shoulder:
+    rotation_deg:
+      x: -27.301607
+      y: -30.777657
+      z: 13.532077
+    translation: null
+  left_thumb_distal:
+    rotation_deg:
+      x: 0.0
+      y: 14.0
+      z: 44.0
+    translation: null
+  left_little_intermediate:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 90.0
+    translation: null
+  chest:
+    rotation_deg:
+      x: -6.0
+      y: 0.0
+      z: 0.0
+    translation: null
+  left_ring_distal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 70.0
+    translation: null
+  right_thumb_proximal:
+    rotation_deg:
+      x: 24.0
+      y: 32.0
+      z: 38.0
+    translation: null
+  left_middle_proximal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 85.0
+    translation: null
+  neck:
+    rotation_deg:
+      x: -6.0
+      y: 0.0
+      z: 0.0
+    translation: null
+  left_little_proximal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 80.0
+    translation: null
+  spine:
+    rotation_deg:
+      x: -12.0
+      y: 0.0
+      z: 0.0
+    translation: null
+  left_hip:
+    rotation_deg:
+      x: -4.0
+      y: 0.0
+      z: 0.0
+    translation: null
+  right_little_intermediate:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 90.0
+    translation: null
+  left_middle_intermediate:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 95.0
+    translation: null
+  right_index_distal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 70.0
+    translation: null
+  left_thumb_metacarpal:
+    rotation_deg:
+      x: 52.0
+      y: 44.0
+      z: 6.0
+    translation: null
+  right_index_intermediate:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 90.0
+    translation: null
+  right_ring_proximal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 85.0
+    translation: null
+  right_little_proximal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 80.0
+    translation: null
+  right_hip:
+    rotation_deg:
+      x: -4.0
+      y: 0.0
+      z: 0.0
+    translation: null
+  right_knee:
+    rotation_deg:
+      x: 8.0
+      y: 0.0
+      z: 0.0
+    translation: null
+  right_elbow:
+    rotation_deg:
+      x: -4.8679743
+      y: 34.59157
+      z: -86.50507
+    translation: null
+  left_elbow:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 88.0
+    translation: null
+  left_index_proximal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 80.0
+    translation: null
+  left_index_intermediate:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 90.0
+    translation: null
+  left_ring_proximal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 85.0
+    translation: null
+  right_middle_intermediate:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 95.0
+    translation: null
+camera: null
 expressions:
-  happy: 1.0
   aa: 0.5
+  happy: 1.0
   ee: 0.18

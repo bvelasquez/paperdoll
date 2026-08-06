@@ -1,0 +1,78 @@
+name: point
+description: Index pointing, other three fingers curled.
+joints:
+  thumb_metacarpal:
+    rotation_deg:
+      x: 18
+      y: 0
+      z: 38
+  thumb_proximal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 45
+  thumb_distal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 35
+  index_proximal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 5
+  index_intermediate:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 5
+  index_distal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 5
+  middle_proximal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 82
+  middle_intermediate:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 90
+  middle_distal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 68
+  ring_proximal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 85
+  ring_intermediate:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 92
+  ring_distal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 70
+  little_proximal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 80
+  little_intermediate:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 88
+  little_distal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 65

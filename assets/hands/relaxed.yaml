@@ -1,0 +1,23 @@
+name: relaxed
+description: Neutral slightly-curled fingers at rest.
+joints:
+  index_proximal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 12
+  middle_proximal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 14
+  ring_proximal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 14
+  little_proximal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 10

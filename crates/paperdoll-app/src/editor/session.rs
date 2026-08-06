@@ -93,8 +93,13 @@ pub struct EditorSession {
 
 impl Default for EditorSession {
     fn default() -> Self {
+        // `PAPERDOLL_EDITOR_OPEN=1` launches straight into the editor (handy for
+        // visual testing / agent workflows that drive the app over HTTP).
+        let open_by_env = std::env::var("PAPERDOLL_EDITOR_OPEN")
+            .map(|v| v == "1")
+            .unwrap_or(false);
         Self {
-            open: false,
+            open: open_by_env,
             tab: EditorTab::Pose,
             pose: PoseEditorState::default(),
             animation: AnimationEditorState::default(),
@@ -182,6 +187,8 @@ pub struct PoseEditorState {
     pub modified_only: bool,
     pub show_camera: bool,
     pub show_expressions: bool,
+    /// Name for the "save current hand as gesture" inline field.
+    pub publish_hand_name: String,
     /// When true, editing a left/right pair mirrors euler to the counterpart joint.
     pub symmetrical: bool,
     /// Set once the empty default draft has been auto-filled from `idle` so a
@@ -220,6 +227,7 @@ impl Default for PoseEditorState {
             show_expressions: false,
             symmetrical: false,
             auto_fill_done: false,
+            publish_hand_name: String::new(),
         }
     }
 }

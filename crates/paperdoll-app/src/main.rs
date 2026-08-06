@@ -31,9 +31,12 @@ use bevy_vrm1::prelude::VrmPlugin;
 use editor::EditorPlugin;
 use editor_state::SharedEditorState;
 use live_state::LiveState;
-use paperdoll_rig::{load_animations_from_dir, load_poses_from_dir, DEFAULT_CAMERA};
+use paperdoll_rig::{
+    load_animations_from_dir, load_hand_gestures_from_dir, load_poses_from_dir, DEFAULT_CAMERA,
+};
 use rig_bridge::{
-    ActiveVariant, AnimationLibrary, ChoreographyCameraEntity, PoseLibrary, ANIMATIONS_DIR,
+    ActiveVariant, AnimationLibrary, ChoreographyCameraEntity, HandGestureLibrary, PoseLibrary,
+    ANIMATIONS_DIR, HANDS_DIR,
     POSES_DIR,
 };
 use std::env;
@@ -92,6 +95,8 @@ fn main() {
         .unwrap_or_else(|e| panic!("failed to load poses from '{POSES_DIR}': {e}"));
     let animations = load_animations_from_dir(Path::new(ANIMATIONS_DIR), &poses)
         .unwrap_or_else(|e| panic!("failed to load animations from '{ANIMATIONS_DIR}': {e}"));
+    let hand_gestures = load_hand_gestures_from_dir(Path::new(HANDS_DIR))
+        .unwrap_or_else(|e| panic!("failed to load hand gestures from '{HANDS_DIR}': {e}"));
     let live_state = LiveState::new();
     let shared_variant = SharedVariantState::new(&launch);
     let shared_expressions = SharedExpressionState::default();
@@ -107,6 +112,7 @@ fn main() {
     App::new()
         .insert_resource(PoseLibrary(Arc::new(RwLock::new(poses))))
         .insert_resource(AnimationLibrary(Arc::new(RwLock::new(animations))))
+        .insert_resource(HandGestureLibrary(Arc::new(RwLock::new(hand_gestures))))
         .insert_resource(live_state)
         .insert_resource(ActiveVariant(launch.variant))
         .insert_resource(shared_variant)
@@ -157,6 +163,8 @@ fn main() {
                 v2_expressions::bind_v2_expressions,
                 v2_expressions::apply_v2_expressions,
                 rig_bridge::apply_rig_commands,
+                rig_bridge::measure_v2_ground_offset,
+                rig_bridge::apply_v2_ground_offset,
             )
                 .chain(),
         )

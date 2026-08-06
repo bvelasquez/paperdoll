@@ -58,6 +58,8 @@ Return the final JSON you registered and the pose/animation name to trigger it.
 | Camera hero shot | Copy `point_hero` or `orbit_victory` |
 | Clap / jump / dance | `POST /animation` `vrma_clapping` etc. or `POST /import/vrma` |
 
+Hand shapes are **data-driven**: named gestures in `assets/hands/*.yaml` (or `POST` /hands), applied to the active hand of the current pose in the editor (buttons or `Alt+1…N`, Shift for the other hand). Each gesture's `joints` use side-agnostic keys (no `left_`/`right_` prefix) and mirror automatically when symmetric. Define one with `POST /hands`, or in the editor type a name in the 'save active hand as gesture' box.
+
 ## Shipped library (see also `pose_catalog` / `animation_catalog` in capabilities)
 
 - **Poses:** body, fingers, stance (`squat`, `kneel`, `contrapposto`, `cross_arms`), head (`head_turn_*`, `head_nod_*`)

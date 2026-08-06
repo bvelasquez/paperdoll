@@ -1,0 +1,38 @@
+name: open
+description: Flat open hand, fingers fully extended.
+joints:
+  thumb_metacarpal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 10
+  thumb_proximal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 10
+  index_proximal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 0
+  index_intermediate:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 0
+  middle_proximal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 0
+  ring_proximal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 0
+  little_proximal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 0

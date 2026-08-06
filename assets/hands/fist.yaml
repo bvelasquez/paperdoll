@@ -1,0 +1,78 @@
+name: fist
+description: All fingers curled into a fist (raised-arm thumb read).
+joints:
+  thumb_metacarpal:
+    rotation_deg:
+      x: 52
+      y: 44
+      z: 6
+  thumb_proximal:
+    rotation_deg:
+      x: 24
+      y: 32
+      z: 38
+  thumb_distal:
+    rotation_deg:
+      x: 0
+      y: 14
+      z: 44
+  index_proximal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 80
+  index_intermediate:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 90
+  index_distal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 70
+  middle_proximal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 85
+  middle_intermediate:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 95
+  middle_distal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 70
+  ring_proximal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 85
+  ring_intermediate:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 95
+  ring_distal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 70
+  little_proximal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 80
+  little_intermediate:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 90
+  little_distal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 70

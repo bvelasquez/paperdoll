@@ -1,0 +1,53 @@
+name: high_five
+description: Open hand with thumb swung slightly out.
+joints:
+  thumb_metacarpal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: -15
+  thumb_proximal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 5
+  index_proximal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 0
+  index_intermediate:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 0
+  middle_proximal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 0
+  middle_intermediate:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 0
+  ring_proximal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 0
+  ring_intermediate:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 0
+  little_proximal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 0
+  little_intermediate:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 0

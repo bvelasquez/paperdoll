@@ -1,0 +1,78 @@
+name: peace
+description: Index + middle extended, ring/little curled, thumb tucked.
+joints:
+  thumb_metacarpal:
+    rotation_deg:
+      x: 15
+      y: 0
+      z: 40
+  thumb_proximal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 50
+  thumb_distal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 40
+  index_proximal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 5
+  index_intermediate:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 5
+  index_distal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 5
+  middle_proximal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 5
+  middle_intermediate:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 5
+  middle_distal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 5
+  ring_proximal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 85
+  ring_intermediate:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 95
+  ring_distal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 70
+  little_proximal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 85
+  little_intermediate:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 95
+  little_distal:
+    rotation_deg:
+      x: 0
+      y: 0
+      z: 70

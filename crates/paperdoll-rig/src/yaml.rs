@@ -1,5 +1,6 @@
 use crate::animation::{Animation, AnimationFile, Keyframe, KeyframeSpec};
 use crate::camera::merge_camera_targets;
+use crate::hand::HandGesture;
 use crate::pose::Pose;
 use std::collections::HashMap;
 use std::path::Path;
@@ -58,6 +59,21 @@ pub fn load_animations_from_dir(
         animations.insert(animation.name.clone(), animation);
     }
     Ok(animations)
+}
+
+/// Scans `dir` for `*.yaml` files and parses each as a [`HandGesture`], keyed by
+/// gesture name. Like [`load_poses_from_dir`], returns an empty map (not an error) if
+/// `dir` doesn't exist, so a fresh project can have no hand gestures yet.
+pub fn load_hand_gestures_from_dir(dir: &Path) -> Result<HashMap<String, HandGesture>, YamlLoadError> {
+    let mut gestures = HashMap::new();
+    if !dir.exists() {
+        return Ok(gestures);
+    }
+    for path in yaml_files_in(dir)? {
+        let gesture: HandGesture = parse_yaml_file(&path)?;
+        gestures.insert(gesture.name.clone(), gesture);
+    }
+    Ok(gestures)
 }
 
 /// Parse a single `assets/animations/*.yaml` file without resolving poses.
@@ -279,6 +295,10 @@ pub fn animation_yaml_path(dir: &Path, name: &str) -> std::path::PathBuf {
     dir.join(format!("{}.yaml", sanitize_asset_filename(name)))
 }
 
+pub fn hand_gesture_yaml_path(dir: &Path, name: &str) -> std::path::PathBuf {
+    dir.join(format!("{}.yaml", sanitize_asset_filename(name)))
+}
+
 /// Write a pose to disk using the same schema as `assets/poses/*.yaml`.
 pub fn write_pose_yaml(path: &Path, pose: &Pose) -> Result<(), YamlWriteError> {
     let text = serde_yaml::to_string(pose).map_err(YamlWriteError::Serialize)?;
@@ -288,6 +308,12 @@ pub fn write_pose_yaml(path: &Path, pose: &Pose) -> Result<(), YamlWriteError> {
 /// Write an animation file to disk using the same schema as `assets/animations/*.yaml`.
 pub fn write_animation_yaml(path: &Path, file: &AnimationFile) -> Result<(), YamlWriteError> {
     let text = serde_yaml::to_string(file).map_err(YamlWriteError::Serialize)?;
+    std::fs::write(path, text).map_err(|e| YamlWriteError::WriteFile(path.display().to_string(), e))
+}
+
+/// Write a hand gesture to disk using the same schema as `assets/hands/*.yaml`.
+pub fn write_hand_gesture_yaml(path: &Path, gesture: &HandGesture) -> Result<(), YamlWriteError> {
+    let text = serde_yaml::to_string(gesture).map_err(YamlWriteError::Serialize)?;
     std::fs::write(path, text).map_err(|e| YamlWriteError::WriteFile(path.display().to_string(), e))
 }
 
@@ -503,6 +529,53 @@ keyframes:
         let animation = resolve_animation(file, &HashMap::new()).unwrap();
         assert!(animation.keyframes[0].pose.hold_joints);
         assert!((animation.keyframes[0].pose.expressions["blink"] - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn loads_hand_gestures_from_directory() {
+        let dir = TempDir::new("hands");
+        dir.write(
+            "fist.yaml",
+            "name: fist\njoints:\n  index_proximal:\n    rotation_deg: { z: 80.0 }\n",
+        );
+        dir.write("peace.yaml", "name: peace\njoints:\n  little_distal:\n    rotation_deg: { z: 70.0 }\n");
+        dir.write("ignored.txt", "not yaml");
+
+        let hands = load_hand_gestures_from_dir(&dir.0).unwrap();
+        assert_eq!(hands.len(), 2);
+        assert!(hands.contains_key("fist"));
+        assert!(hands.contains_key("peace"));
+        assert_eq!(hands["fist"].joints.len(), 1);
+    }
+
+    #[test]
+    fn missing_hand_dir_returns_empty_map_not_error() {
+        let hands = load_hand_gestures_from_dir(Path::new("/nonexistent/hand/dir")).unwrap();
+        assert!(hands.is_empty());
+    }
+
+    #[test]
+    fn write_hand_gesture_yaml_round_trips() {
+        let dir = TempDir::new("write-hand");
+        let path = dir.0.join("fist.yaml");
+        let mut joints = HashMap::new();
+        joints.insert(
+            "index_proximal".to_string(),
+            crate::pose::JointTarget {
+                rotation_deg: Some(crate::pose::EulerDeg { x: 0.0, y: 0.0, z: 80.0 }),
+                rotation_quat: None,
+                translation: None,
+            },
+        );
+        let gesture = HandGesture {
+            name: "fist".into(),
+            description: Some("test".into()),
+            joints,
+        };
+        write_hand_gesture_yaml(&path, &gesture).unwrap();
+        let loaded = load_hand_gestures_from_dir(&dir.0).unwrap();
+        assert_eq!(loaded["fist"].name, "fist");
+        assert_eq!(loaded["fist"].joints.len(), 1);
     }
 
     #[test]

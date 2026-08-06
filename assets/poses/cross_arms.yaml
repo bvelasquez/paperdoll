@@ -1,30 +1,232 @@
 name: cross_arms
-description: >
-  Arms folded across the upper chest (right forearm over left). Strong forward
-  shoulder y (~±80) with mild toward-hip z (~±25) and elbow ~±85 — deeper elbows
-  climb the hands to the chin.
+description: |
+  Arms folded across the upper chest (right forearm over left). Strong forward shoulder y (~±80) with mild toward-hip z (~±25) and elbow ~±85 — deeper elbows climb the hands to the chin.
 joints:
-  right_shoulder:
-    rotation_deg: { y: 80.0, z: 25.0 }
-  right_elbow:
-    rotation_deg: { z: 85.0 }
-  right_wrist:
-    rotation_deg: { z: -8.0, y: 10.0 }
+  right_middle_proximal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 84.99999
+    translation: null
   left_shoulder:
-    rotation_deg: { y: -80.0, z: -25.0 }
-  left_elbow:
-    rotation_deg: { z: -85.0 }
-  left_wrist:
-    rotation_deg: { z: 8.0, y: -10.0 }
+    rotation_deg:
+      x: 18.086082
+      y: -57.26892
+      z: -26.962381
+    translation: null
+  left_middle_intermediate:
+    rotation_deg:
+      x: 0.0
+      y: -0.0
+      z: -94.99999
+    translation: null
+  right_ring_intermediate:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 94.99999
+    translation: null
+  right_little_intermediate:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 90.0
+    translation: null
+  right_ring_distal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 70.00001
+    translation: null
+  left_little_distal:
+    rotation_deg:
+      x: 0.0
+      y: -0.0
+      z: -70.00001
+    translation: null
+  left_index_intermediate:
+    rotation_deg:
+      x: 0.0
+      y: -0.0
+      z: -90.0
+    translation: null
+  left_little_intermediate:
+    rotation_deg:
+      x: 0.0
+      y: -0.0
+      z: -90.0
+    translation: null
+  right_little_proximal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 80.0
+    translation: null
+  left_index_distal:
+    rotation_deg:
+      x: 0.0
+      y: -0.0
+      z: -70.00001
+    translation: null
+  right_little_distal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 70.00001
+    translation: null
+  right_middle_intermediate:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 94.99999
+    translation: null
+  right_thumb_proximal:
+    rotation_deg:
+      x: 24.0
+      y: 32.0
+      z: 38.0
+    translation: null
+  right_ring_proximal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 84.99999
+    translation: null
+  right_index_intermediate:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 90.0
+    translation: null
+  left_middle_distal:
+    rotation_deg:
+      x: 0.0
+      y: -0.0
+      z: -70.00001
+    translation: null
   chest:
-    rotation_deg: { x: 6.0 }
+    rotation_deg:
+      x: 6.0
+      y: 0.0
+      z: 0.0
+    translation: null
   neck:
-    rotation_deg: { x: -5.0, y: 4.0 }
+    rotation_deg:
+      x: -7.580066
+      y: -0.571959
+      z: -9.425862
+    translation: null
+  right_elbow:
+    rotation_deg:
+      x: -72.943855
+      y: -11.6528225
+      z: 112.72295
+    translation: null
+  right_index_distal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 70.00001
+    translation: null
+  left_thumb_distal:
+    rotation_deg:
+      x: 0.0
+      y: -14.0
+      z: -44.0
+    translation: null
+  left_thumb_proximal:
+    rotation_deg:
+      x: 24.0
+      y: -32.0
+      z: -38.0
+    translation: null
+  right_index_proximal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 80.0
+    translation: null
+  left_index_proximal:
+    rotation_deg:
+      x: 0.0
+      y: -0.0
+      z: -80.0
+    translation: null
+  left_elbow:
+    rotation_deg:
+      x: -71.460396
+      y: 6.328491
+      z: -122.26353
+    translation: null
+  left_middle_proximal:
+    rotation_deg:
+      x: 0.0
+      y: -0.0
+      z: -84.99999
+    translation: null
+  left_thumb_metacarpal:
+    rotation_deg:
+      x: 52.0
+      y: -44.0
+      z: -6.0
+    translation: null
+  right_thumb_metacarpal:
+    rotation_deg:
+      x: 52.0
+      y: 44.0
+      z: 6.0
+    translation: null
+  right_shoulder:
+    rotation_deg:
+      x: 18.086082
+      y: 57.26892
+      z: 26.962381
+    translation: null
+  right_middle_distal:
+    rotation_deg:
+      x: 0.0
+      y: 0.0
+      z: 70.00001
+    translation: null
+  right_thumb_distal:
+    rotation_deg:
+      x: 0.0
+      y: 14.0
+      z: 44.0
+    translation: null
+  left_little_proximal:
+    rotation_deg:
+      x: 0.0
+      y: -0.0
+      z: -80.0
+    translation: null
+  left_ring_proximal:
+    rotation_deg:
+      x: 0.0
+      y: -0.0
+      z: -84.99999
+    translation: null
+  left_ring_intermediate:
+    rotation_deg:
+      x: 0.0
+      y: -0.0
+      z: -94.99999
+    translation: null
+  left_ring_distal:
+    rotation_deg:
+      x: 0.0
+      y: -0.0
+      z: -70.00001
+    translation: null
 camera:
   yaw_deg: 18.0
   pitch_deg: 4.0
   distance: 3.0
-  look_at: [0.0, 1.1, 0.0]
+  look_at:
+  - 0.0
+  - 1.1
+  - 0.0
 expressions:
+  blinkRight: 0.75
   relaxed: 0.3
   angry: 0.12

@@ -1,0 +1,51 @@
+name: knee_up
+description: null
+loop: true
+play_automatically: true
+keyframes:
+- pose: idle
+  joints: null
+  camera:
+    yaw_deg: null
+    pitch_deg: null
+    distance: null
+    look_at: null
+  expressions: {}
+  hold: null
+  duration_ms: 400
+  easing: ease_in_out
+- pose: knee_up
+  joints: null
+  camera: null
+  expressions: null
+  hold: null
+  duration_ms: 600
+  easing: linear
+- pose: knee_up
+  joints: null
+  camera: null
+  expressions: null
+  hold: null
+  duration_ms: 600
+  easing: ease_in_out
+- pose: idle
+  joints: null
+  camera: null
+  expressions: null
+  hold: null
+  duration_ms: 400
+  easing: ease_in_out
+- pose: idle
+  joints: null
+  camera: null
+  expressions: null
+  hold: null
+  duration_ms: 400
+  easing: linear
+- pose: cross_arms
+  joints: null
+  camera: null
+  expressions: null
+  hold: null
+  duration_ms: 400
+  easing: ease_in_out

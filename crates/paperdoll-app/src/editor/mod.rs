@@ -4,6 +4,7 @@ mod joints;
 mod posing_guide;
 mod session;
 mod symmetry;
+mod viewport;
 
 pub use apply::{
     capture_scene_to_pose_draft, editor_apply_preview, sync_editor_http_lock,
@@ -14,26 +15,26 @@ pub use session::{
 };
 
 use crate::editor::hand_presets::{
-    apply_hand_preset, preset_from_shortcut, raised_right_hand_shot_camera, HandPreset,
+    apply_hand_gesture, capture_hand_gesture, raised_right_hand_shot_camera, sorted_gestures,
     HAND_SHOT_POSE_NAME,
 };
 use crate::editor::session::{euler_for_joint, set_joint_euler, unique_name};
 use crate::editor::symmetry::{side_from_joint, BodySide};
 use crate::rig_bridge::{
-    ActiveVariant, AnimationLibrary, ChoreographyCameraEntity, PoseLibrary, RigEntities,
-    RigPlayback, RigSkeleton, ANIMATIONS_DIR, POSES_DIR,
+    ActiveVariant, AnimationLibrary, HandGestureLibrary, PoseLibrary, RigPlayback, RigSkeleton,
+    ANIMATIONS_DIR, HANDS_DIR, POSES_DIR,
 };
+use crate::editor::viewport::ViewportPrefs;
 use crate::v2_expressions::SharedExpressionState;
 use bevy::input::keyboard::KeyCode;
-use bevy::input::mouse::MouseButton;
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
 use crate::camera_controls::{apply_viewport_camera_patch, ViewportCamera};
 use bevy_egui::input::EguiWantsInput;
 use bevy_egui::{egui, EguiContexts, EguiPostUpdateSet, EguiPrimaryContextPass};
 use paperdoll_rig::{
-    animation_yaml_path, pose_yaml_path, resolve_animation, write_animation_yaml, write_pose_yaml,
-    AnimationFile, CameraTarget, Easing, KeyframeSpec, PlaybackState, Pose,
+    animation_yaml_path, hand_gesture_yaml_path, pose_yaml_path, resolve_animation,
+    write_animation_yaml, write_hand_gesture_yaml, write_pose_yaml, AnimationFile, CameraTarget,
+    Easing, HandGesture, KeyframeSpec, PlaybackState, Pose,
 };
 use paperdoll_rig::{animation_to_file, load_animation_file};
 use std::collections::{HashMap, HashSet};
@@ -44,8 +45,12 @@ pub struct EditorPlugin;
 impl Plugin for EditorPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<EditorSession>()
+            .init_resource::<viewport::ViewportPrefs>()
+            .init_resource::<viewport::GizmoState>()
+            .add_systems(Startup, viewport::setup_gizmo_config)
+            .add_systems(Update, viewport::apply_hide_mesh)
             .add_systems(Update, (toggle_editor, sync_editor_http_lock, editor_keyboard_shortcuts))
-            .add_systems(EguiPrimaryContextPass, editor_ui)
+            .add_systems(EguiPrimaryContextPass, (editor_ui, viewport::editor_corner_widget).chain())
             .add_systems(
                 PostUpdate,
                 (
@@ -64,7 +69,13 @@ impl Plugin for EditorPlugin {
                     .chain()
                     .after(crate::rig_bridge::advance_playback),
             )
-            .add_systems(PostUpdate, editor_bone_pick);
+            .add_systems(
+                PostUpdate,
+                viewport::editor_viewport_manip
+                    .after(EguiPostUpdateSet::ProcessOutput)
+                    .before(editor_apply_preview)
+                    .before(crate::camera_controls::viewport_camera_controls),
+            );
     }
 }
 
@@ -90,8 +101,11 @@ pub fn editor_ui(
     mut contexts: EguiContexts,
     mut session: ResMut<EditorSession>,
     mut viewport: ResMut<ViewportCamera>,
+    mut prefs: ResMut<ViewportPrefs>,
+    mut ground: ResMut<crate::rig_bridge::GroundOffset>,
     poses: Res<PoseLibrary>,
     animations: Res<AnimationLibrary>,
+    hands: Res<HandGestureLibrary>,
     skeleton: Res<RigSkeleton>,
     playback: Res<RigPlayback>,
     active_variant: Res<ActiveVariant>,
@@ -193,7 +207,7 @@ pub fn editor_ui(
         }
             ui.separator();
             ui.collapsing("Stage camera", |ui| {
-                stage_camera_panel(ui, &mut session, &mut viewport, &poses);
+                stage_camera_panel(ui, &mut session, &mut viewport, &mut prefs, &mut ground, &poses);
             });
         });
 
@@ -202,7 +216,13 @@ pub fn editor_ui(
             .default_width(260.0)
             .frame(panel_frame(egui::Frame::default()))
             .show(ctx, |ui| {
-                pose_joint_inspector(ui, &mut session.pose, &poses, &expressions);
+                pose_joint_inspector(
+                    ui,
+                    &mut session,
+                    &mut prefs,
+                    &hands,
+                    &expressions,
+                );
             });
     }
 
@@ -242,8 +262,15 @@ pub fn editor_ui(
                 ui.label("F2 — toggle editor (asks before discarding unsaved edits)");
                 ui.label("Ctrl/Cmd+S — save the current draft");
                 ui.label("Alt+1…7 — hand presets on the active hand (add Shift for the other hand)");
-                ui.label("Click a bone in the viewport — select that joint");
-                ui.label("Right/middle-drag — orbit camera · scroll — zoom");
+                ui.separator();
+                ui.heading("Viewport controls");
+                ui.label("Left-click a bone / joint marker — select that joint");
+                ui.label("Drag an X / Y / Z row on the corner control — rotate the selected joint");
+                ui.label("Selecting a joint dims the rest of the skeleton — its chain stays bright");
+                ui.label("Left-drag empty space, or right/middle-drag — orbit the stage");
+                ui.label("Scroll — zoom · 'Focus left/right hand' zooms into a hand for finger work");
+                ui.label("H — hide/show the doll's skin (skeleton only view)");
+                ui.label("Show skeleton/gizmo toggles live in the Stage camera panel.");
                 ui.separator();
                 ui.heading("How saving works");
                 ui.label("Everything is a DRAFT until you press Save. ● marks unsaved edits.");
@@ -630,9 +657,64 @@ fn stage_camera_panel(
     ui: &mut egui::Ui,
     session: &mut EditorSession,
     viewport: &mut ViewportCamera,
+    prefs: &mut ViewportPrefs,
+    ground: &mut crate::rig_bridge::GroundOffset,
     poses: &PoseLibrary,
 ) {
-    ui.label("Viewport: right-drag or middle-drag to orbit · scroll to zoom.");
+    // ── Viewport direct-manipulation tools ──────────────────────────────────
+    ui.collapsing("Viewport tools", |ui| {
+        ui.checkbox(&mut prefs.show_skeleton, "Show skeleton")
+            .on_hover_text("Draw the rig's bones and joint markers over the doll");
+        ui.checkbox(&mut prefs.show_gizmo, "Rotation controls (corner)")
+            .on_hover_text("Show the corner X/Y/Z drag rows — drag a row to rotate the selected joint");
+        ui.checkbox(&mut prefs.hide_mesh, "Hide skin (skeleton only)")
+            .on_hover_text("Hide the doll's body mesh so only the bones show — great for reaching joints buried in the body");
+        ui.checkbox(&mut prefs.left_drag_orbit, "Left-drag orbits empty stage")
+            .on_hover_text("Click to select a bone; dragging on empty space orbits (right/middle-drag works too)");
+        ui.add_space(4.0);
+        ui.label(egui::RichText::new("Model height:").small().weak());
+        let mut h = ground.manual;
+        if ui
+            .add(egui::Slider::new(&mut h, -0.5..=0.5).text("raise/lower"))
+            .on_hover_text(
+                "The doll auto-stands on the ground. Nudge it up or down here \
+                 (e.g. for poses that lift the feet, or to sit it lower).",
+            )
+            .changed()
+        {
+            ground.manual = h;
+        }
+        ui.label(egui::RichText::new("Focus:").small().weak());
+        ui.horizontal(|ui| {
+            if ui
+                .button("Left hand")
+                .on_hover_text("Zoom the camera into the left hand for finger work")
+                .clicked()
+            {
+                prefs.pending_focus = Some("left_hand".into());
+            }
+            if ui
+                .button("Right hand")
+                .on_hover_text("Zoom the camera into the right hand for finger work")
+                .clicked()
+            {
+                prefs.pending_focus = Some("right_hand".into());
+            }
+            if session.tab == EditorTab::Pose {
+                if let Some(joint) = session.pose.selected_joint.clone() {
+                    if ui
+                        .button("Selected joint")
+                        .on_hover_text("Frame the currently selected joint")
+                        .clicked()
+                    {
+                        prefs.pending_focus = Some(joint);
+                    }
+                }
+            }
+        });
+    });
+
+    ui.label("Viewport: left/right/middle-drag to orbit · scroll to zoom.");
 
     let mut yaw = viewport.orbit.yaw_deg;
     let mut pitch = viewport.orbit.pitch_deg;
@@ -939,16 +1021,31 @@ fn pose_panel(
 
 fn pose_joint_inspector(
     ui: &mut egui::Ui,
-    pose: &mut PoseEditorState,
-    poses: &PoseLibrary,
+    session: &mut EditorSession,
+    prefs: &mut ViewportPrefs,
+    hands: &HandGestureLibrary,
     expressions: &SharedExpressionState,
 ) {
-    if let Some(joint) = pose.selected_joint.clone() {
-        ui.heading(&joint);
+    if let Some(joint) = session.pose.selected_joint.clone() {
+        ui.horizontal(|ui| {
+            ui.heading(&joint);
+            if ui
+                .button("🔍 Frame")
+                .on_hover_text("Move the camera to frame this joint (great for tiny finger bones)")
+                .clicked()
+            {
+                prefs.pending_focus = Some(joint.clone());
+            }
+        });
+        ui.label(
+            egui::RichText::new("Drag the X/Y/Z rings on the stage to rotate this joint with the mouse.")
+                .small()
+                .weak(),
+        );
         if let Some(hint) = posing_guide::hint_for_joint(&joint) {
             ui.label(egui::RichText::new(hint).small().weak());
         }
-        let mut euler = euler_for_joint(&pose.draft, &joint);
+        let mut euler = euler_for_joint(&session.pose.draft, &joint);
         let mut changed = false;
         ui.horizontal(|ui| {
             ui.label("X");
@@ -970,10 +1067,10 @@ fn pose_joint_inspector(
         });
         if changed {
             set_joint_euler(
-                &mut pose.draft,
+                &mut session.pose.draft,
                 &joint,
                 euler,
-                pose.symmetrical,
+                session.pose.symmetrical,
             );
         }
         if ui
@@ -981,40 +1078,90 @@ fn pose_joint_inspector(
             .on_hover_text("Remove this joint's edit so it returns to the rest pose")
             .clicked()
         {
-            pose.draft.joints.remove(&joint);
-            if pose.symmetrical {
+            session.pose.draft.joints.remove(&joint);
+            if session.pose.symmetrical {
                 if let Some(other) = crate::editor::symmetry::counterpart_joint(&joint) {
-                    pose.draft.joints.remove(&other);
+                    session.pose.draft.joints.remove(&other);
                 }
             }
         }
         ui.separator();
         ui.heading("Hand shapes");
         ui.label(egui::RichText::new(
-            "Alt+1…7 applies a shape to the active hand (add Shift for the other). \
-             'fist' on the right reuses the curled fingers from the 'raised_right_hand' reference pose.",
+            "Alt+1…N applies a saved gesture to the active hand (add Shift for the other). \
+             Gestures load from assets/hands/*.yaml or POST /hands.",
         ).small().weak());
-        let active_side = pose
+        let active_side = session
+            .pose
             .selected_joint
             .as_deref()
             .and_then(side_from_joint)
             .unwrap_or(BodySide::Right);
         ui.label(format!("active hand: {}", active_side.prefix().trim_end_matches('_')));
-        let fist_ref = poses.0.read().unwrap().get(HAND_SHOT_POSE_NAME).cloned();
-        ui.horizontal_wrapped(|ui| {
-            for preset in HandPreset::ALL {
-                if ui
-                    .button(preset.label())
-                    .on_hover_text(format!("Alt+{}", preset.shortcut_index()))
-                    .clicked()
-                {
-                    apply_hand_preset(
-                        &mut pose.draft,
-                        active_side,
-                        preset,
-                        pose.symmetrical,
-                        fist_ref.as_ref(),
-                    );
+        let gestures = {
+            let guard = hands.0.read().unwrap();
+            sorted_gestures(&guard)
+        };
+        if gestures.is_empty() {
+            ui.label(
+                egui::RichText::new("No hand gestures loaded — add assets/hands/*.yaml or POST /hands.")
+                    .weak(),
+            );
+        } else {
+            ui.horizontal_wrapped(|ui| {
+                for (i, gesture) in gestures.iter().enumerate() {
+                    if ui
+                        .button(&gesture.name)
+                        .on_hover_text(format!("Alt+{}", i + 1))
+                        .clicked()
+                    {
+                        let n = apply_hand_gesture(
+                            &mut session.pose.draft,
+                            active_side,
+                            gesture,
+                            session.pose.symmetrical,
+                        );
+                        session.success(format!(
+                            "Hand gesture '{}' on {} hand{} ({} joints)",
+                            gesture.name,
+                            active_side.prefix().trim_end_matches('_'),
+                            if session.pose.symmetrical { ", mirrored" } else { "" },
+                            n
+                        ));
+                    }
+                }
+            });
+        }
+        ui.horizontal(|ui| {
+            ui.add(
+                egui::TextEdit::singleline(&mut session.pose.publish_hand_name)
+                    .hint_text("new gesture name")
+                    .desired_width(140.0),
+            );
+            let can_save = !session.pose.publish_hand_name.trim().is_empty()
+                && gestures.iter().any(|g| g.name != session.pose.publish_hand_name.trim());
+            if ui
+                .add_enabled(can_save, egui::Button::new("Save active hand as gesture"))
+                .on_hover_text(
+                    "Capture the active hand's current finger joints as a new named gesture",
+                )
+                .clicked()
+            {
+                let name = session.pose.publish_hand_name.trim().to_string();
+                match capture_hand_gesture(&session.pose.draft, active_side, name.clone()) {
+                    Some(gesture) => {
+                        let saved = save_hand_gesture(&gesture, &hands);
+                        session.success(
+                            saved.as_deref()
+                                .map(|p| format!("Saved hand gesture '{}' → {}", name, p))
+                                .unwrap_or_else(|| {
+                                    format!("Registered hand gesture '{}'", name)
+                                }),
+                        );
+                    }
+                    None => session.error(
+                        "The active hand has no finger joints set — edit some fingers first.",
+                    ),
                 }
             }
         });
@@ -1022,10 +1169,10 @@ fn pose_joint_inspector(
         ui.label("Select a joint from the list (or click a bone in the viewport).");
     }
 
-    if pose.show_camera {
+    if session.pose.show_camera {
         ui.separator();
         ui.heading("Camera");
-        let cam = pose.draft.camera.get_or_insert_with(CameraTarget::default);
+        let cam = session.pose.draft.camera.get_or_insert_with(CameraTarget::default);
         cam_option_f32(ui, "yaw_deg", &mut cam.yaw_deg, -180.0..=180.0);
         cam_option_f32(ui, "pitch_deg", &mut cam.pitch_deg, -80.0..=80.0);
         cam_option_f32(ui, "distance", &mut cam.distance, 1.2..=12.0);
@@ -1034,11 +1181,11 @@ fn pose_joint_inspector(
             .on_hover_text("Remove the camera block — this pose then leaves the camera alone")
             .clicked()
         {
-            pose.draft.camera = None;
+            session.pose.draft.camera = None;
         }
     }
 
-    if pose.show_expressions {
+    if session.pose.show_expressions {
         ui.separator();
         ui.heading("Expressions");
         let snap = expressions.snapshot();
@@ -1046,15 +1193,15 @@ fn pose_joint_inspector(
             ui.label("Load v2 VRM for expression presets.");
         } else {
             for preset in &snap.available {
-                let mut weight = pose.draft.expressions.get(preset).copied().unwrap_or(0.0);
+                let mut weight = session.pose.draft.expressions.get(preset).copied().unwrap_or(0.0);
                 if ui
                     .add(egui::Slider::new(&mut weight, 0.0..=1.0).text(preset))
                     .changed()
                 {
                     if weight <= 1e-4 {
-                        pose.draft.expressions.remove(preset);
+                        session.pose.draft.expressions.remove(preset);
                     } else {
-                        pose.draft.expressions.insert(preset.clone(), weight);
+                        session.pose.draft.expressions.insert(preset.clone(), weight);
                     }
                 }
             }
@@ -1653,6 +1800,23 @@ fn save_pose(draft: &Pose, poses: &PoseLibrary) -> Result<std::path::PathBuf, St
     Ok(path)
 }
 
+/// Persist a hand gesture to `assets/hands/*.yaml` and register it in the live
+/// library so it shows up immediately and stays after a restart.
+fn save_hand_gesture(gesture: &HandGesture, hands: &HandGestureLibrary) -> Option<String> {
+    let path = hand_gesture_yaml_path(Path::new(HANDS_DIR), &gesture.name);
+    let written = write_hand_gesture_yaml(&path, gesture).is_ok();
+    hands
+        .0
+        .write()
+        .unwrap()
+        .insert(gesture.name.clone(), gesture.clone());
+    if written {
+        Some(path.display().to_string())
+    } else {
+        None
+    }
+}
+
 fn save_animation(
     draft: &AnimationFile,
     poses: &PoseLibrary,
@@ -1670,66 +1834,6 @@ fn save_animation(
     Ok(path)
 }
 
-/// Click a bone marker in the viewport to select it in the pose editor (when egui is not using the pointer).
-pub fn editor_bone_pick(
-    mut session: ResMut<EditorSession>,
-    egui_wants: Res<EguiWantsInput>,
-    buttons: Res<ButtonInput<MouseButton>>,
-    windows: Query<&Window, With<PrimaryWindow>>,
-    camera_entity: Res<ChoreographyCameraEntity>,
-    cameras: Query<(&Camera, &GlobalTransform)>,
-    rig_entities: Res<RigEntities>,
-    skeleton: Res<RigSkeleton>,
-    transforms: Query<&GlobalTransform>,
-) {
-    if !session.open || session.tab != EditorTab::Pose {
-        return;
-    }
-    if !buttons.just_pressed(MouseButton::Left) {
-        return;
-    }
-    if egui_wants.is_pointer_over_area() {
-        return;
-    }
-    let Ok(window) = windows.single() else {
-        return;
-    };
-    let Some(cursor) = window.cursor_position() else {
-        return;
-    };
-    let Ok((camera, cam_tf)) = cameras.get(camera_entity.0) else {
-        return;
-    };
-    let Ok(ray) = camera.viewport_to_world(cam_tf, cursor) else {
-        return;
-    };
-    let origin = ray.origin;
-    let dir = ray.direction.normalize();
-
-    let mut best: Option<(f32, String)> = None;
-    for (joint_id, entity) in &rig_entities.0 {
-        let Ok(gt) = transforms.get(*entity) else {
-            continue;
-        };
-        let p = gt.translation();
-        let t = dir.dot(p - origin) / dir.dot(dir);
-        if t < 0.0 {
-            continue;
-        }
-        let closest = origin + dir * t;
-        let dist = (closest - p).length();
-        if dist < 0.12 {
-            let name = skeleton.0.joint(*joint_id).name.clone();
-            if best.as_ref().map(|(d, _)| dist < *d).unwrap_or(true) {
-                best = Some((dist, name));
-            }
-        }
-    }
-    if let Some((_, name)) = best {
-        session.pose.selected_joint = Some(name);
-    }
-}
-
 fn digit_from_key(code: KeyCode) -> Option<u8> {
     match code {
         KeyCode::Digit1 => Some(1),
@@ -1739,6 +1843,8 @@ fn digit_from_key(code: KeyCode) -> Option<u8> {
         KeyCode::Digit5 => Some(5),
         KeyCode::Digit6 => Some(6),
         KeyCode::Digit7 => Some(7),
+        KeyCode::Digit8 => Some(8),
+        KeyCode::Digit9 => Some(9),
         _ => None,
     }
 }
@@ -1750,13 +1856,25 @@ pub fn editor_keyboard_shortcuts(
     keys: Res<ButtonInput<KeyCode>>,
     poses: Res<PoseLibrary>,
     animations: Res<AnimationLibrary>,
+    hands: Res<HandGestureLibrary>,
     mut session: ResMut<EditorSession>,
+    mut prefs: ResMut<ViewportPrefs>,
 ) {
     if !session.open {
         return;
     }
     if egui_wants.wants_keyboard_input() {
         return;
+    }
+
+    // H — toggle the doll's skin so only the skeleton shows.
+    if keys.just_pressed(KeyCode::KeyH) {
+        prefs.hide_mesh = !prefs.hide_mesh;
+        if prefs.hide_mesh {
+            session.info("Skin hidden — skeleton only (H to show).");
+        } else {
+            session.info("Skin shown (H to hide).");
+        }
     }
 
     let ctrl = keys.pressed(KeyCode::ControlLeft)
@@ -1795,6 +1913,8 @@ pub fn editor_keyboard_shortcuts(
         KeyCode::Digit5,
         KeyCode::Digit6,
         KeyCode::Digit7,
+        KeyCode::Digit8,
+        KeyCode::Digit9,
     ] {
         if !keys.just_pressed(code) {
             continue;
@@ -1802,21 +1922,25 @@ pub fn editor_keyboard_shortcuts(
         let Some(digit) = digit_from_key(code) else {
             continue;
         };
-        let Some(preset) = preset_from_shortcut(digit) else {
+        let gesture = {
+            let guard = hands.0.read().unwrap();
+            sorted_gestures(&guard)
+                .into_iter()
+                .nth((digit - 1) as usize)
+        };
+        let Some(gesture) = gesture else {
             continue;
         };
         let symmetrical = session.pose.symmetrical;
-        let fist_ref = poses.0.read().unwrap().get(HAND_SHOT_POSE_NAME).cloned();
-        apply_hand_preset(
+        apply_hand_gesture(
             &mut session.pose.draft,
             side,
-            preset,
+            &gesture,
             symmetrical,
-            fist_ref.as_ref(),
         );
         session.success(format!(
-            "Hand preset '{}' on {} hand{}",
-            preset.label(),
+            "Hand gesture '{}' on {} hand{}",
+            gesture.name,
             side.prefix().trim_end_matches('_'),
             if symmetrical { " (mirrored)" } else { "" }
         ));

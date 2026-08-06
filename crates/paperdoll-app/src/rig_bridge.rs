@@ -6,11 +6,12 @@ use crate::doll_mesh::{
 use crate::v2_vrm;
 use crate::variant::{DollVariant, SharedVariantState};
 use bevy::ecs::system::SystemParam;
+use bevy::mesh::{Mesh, VertexAttributeValues};
 use bevy::prelude::*;
-use bevy_vrm1::prelude::RestTransform;
+use bevy_vrm1::prelude::{Initialized, RestTransform, Vrm};
 use paperdoll_rig::{
-    duration_ms_for_speed, Animation, CameraTarget, JointId, PlaybackState, PlaybackTarget, Pose,
-    Skeleton,
+    duration_ms_for_speed, Animation, CameraTarget, HandGesture, JointId, PlaybackState,
+    PlaybackTarget, Pose, Skeleton,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -20,6 +21,112 @@ use std::sync::{Arc, RwLock};
 /// anatomical ankle height (0.06) and the foot (toe segment + heel) touches y=0.
 const ROOT_HEIGHT: f32 = 0.96;
 
+/// Vertical offset that keeps the visual model standing on the ground (y=0).
+///
+/// The v1 procedural doll bakes [`ROOT_HEIGHT`] into its joint spawn, but the v2
+/// VRM character is spawned with its root at y=0 — and a VRM's own rest pose may
+/// hold its feet above or below y=0. [`measure_v2_ground_offset`] measures the
+/// lowest foot bone once per v2 spawn and stores the corrective `auto` offset;
+/// `manual` lets the user nudge the model up/down on top of that (e.g. for poses
+/// that lift the feet, sitting poses, or playing with scale).
+#[derive(Resource, Default)]
+pub struct GroundOffset {
+    /// Measured correction so the model's feet rest on y=0 (negative = move down).
+    pub auto: f32,
+    /// User-adjustable extra lift/lower, added on top of `auto`.
+    pub manual: f32,
+    /// Which v2 root entity the measurement belongs to — a fresh VRM spawn gets
+    /// re-measured instead of reusing a stale offset from another asset.
+    measured_for: Option<Entity>,
+}
+
+/// Once per v2 spawn: measure the model's true lowest point (skinned mesh sole
+/// vertices; foot bones as a fallback) and record how far the root must move down
+/// for the soles to sit on y=0.
+pub fn measure_v2_ground_offset(
+    assets: Res<Assets<Mesh>>,
+    skeleton: Res<RigSkeleton>,
+    rig: Res<RigEntities>,
+    mesh_q: Query<&Mesh3d>,
+    children_q: Query<&Children>,
+    transforms: Query<&GlobalTransform>,
+    mut offset: ResMut<GroundOffset>,
+    roots: Query<Entity, (With<Vrm>, With<Initialized>, With<DollVisualRoot>)>,
+) {
+    let Ok(root) = roots.single() else {
+        return;
+    };
+    if offset.measured_for == Some(root) {
+        return;
+    }
+
+    // Skinned-mesh vertices are authored in the bind (= rest) pose, so the lowest
+    // vertex is the actual sole of the foot — no bone-semantics guessing needed.
+    let mut min_y = f32::INFINITY;
+    let mut stack = vec![root];
+    while let Some(e) = stack.pop() {
+        if let Ok(handle) = mesh_q.get(e) {
+            if let Some(mesh) = assets.get(&handle.0) {
+                if let Some(VertexAttributeValues::Float32x3(positions)) =
+                    mesh.attribute(Mesh::ATTRIBUTE_POSITION)
+                {
+                    let origin_y = transforms
+                        .get(e)
+                        .map(|gt| gt.translation().y)
+                        .unwrap_or(0.0);
+                    for p in positions {
+                        min_y = min_y.min(origin_y + p[1]);
+                    }
+                }
+            }
+        }
+        if let Ok(children) = children_q.get(e) {
+            stack.extend(children.iter());
+        }
+    }
+
+    // Fallback: if no mesh bounds were found, use the lowest foot bone (toe/ankle).
+    if !min_y.is_finite() {
+        for name in ["left_toe", "right_toe", "left_ankle", "right_ankle"] {
+            let Some(id) = skeleton.0.joint_by_name(name) else {
+                continue;
+            };
+            let Some(&entity) = rig.0.get(&id) else {
+                continue;
+            };
+            if let Ok(gt) = transforms.get(entity) {
+                min_y = min_y.min(gt.translation().y);
+            }
+        }
+    }
+
+    if min_y.is_finite() {
+        offset.auto = -min_y;
+        offset.measured_for = Some(root);
+        info!(
+            "v2 grounded: sole at y={min_y:.3}, root offset={:.3}",
+            offset.auto
+        );
+    }
+}
+
+/// Apply the combined ground offset (auto + manual) to the v2 VRM root each frame.
+/// v1 bakes [`ROOT_HEIGHT`] into its joint spawns, so this only touches VRM roots.
+pub fn apply_v2_ground_offset(
+    offset: Res<GroundOffset>,
+    mut roots: Query<&mut Transform, (With<DollVisualRoot>, With<Vrm>)>,
+) {
+    if offset.measured_for.is_none() {
+        return;
+    }
+    let y = offset.auto + offset.manual;
+    for mut tf in &mut roots {
+        if (tf.translation.y - y).abs() > 1e-5 {
+            tf.translation.y = y;
+        }
+    }
+}
+
 /// Where pose YAML files live, relative to the process's working directory (the
 /// workspace root when run via `cargo run -p paperdoll-app`). `pub(crate)` so
 /// `http_api.rs` can load the same directory for its `GET /poses` listing.
@@ -27,6 +134,9 @@ pub(crate) const POSES_DIR: &str = "assets/poses";
 
 /// Where animation YAML files live. See `POSES_DIR`.
 pub const ANIMATIONS_DIR: &str = "assets/animations";
+
+/// Where hand-gesture YAML files live. See `POSES_DIR`.
+pub const HANDS_DIR: &str = "assets/hands";
 
 /// Pose applied at launch. The skeleton's rest is a T-pose (arms out); we bake this
 /// default in at spawn so the window never flashes arms-out before settling.
@@ -155,6 +265,12 @@ pub struct PoseLibrary(pub Arc<RwLock<HashMap<String, Pose>>>);
 /// thread the same way `PoseLibrary` is — see its doc comment.
 #[derive(Resource, Clone)]
 pub struct AnimationLibrary(pub Arc<RwLock<HashMap<String, Animation>>>);
+
+/// Hand gestures keyed by name: everything loaded from `assets/hands/*.yaml` at
+/// startup, plus anything registered afterward via `POST /hands`. Shared with the
+/// HTTP thread the same way `PoseLibrary` is — see its doc comment.
+#[derive(Resource, Clone)]
+pub struct HandGestureLibrary(pub Arc<RwLock<HashMap<String, HandGesture>>>);
 
 /// A command sent from the HTTP API (`http_api.rs`, running on its own OS thread)
 /// into the Bevy ECS, applied once per frame by [`apply_rig_commands`]. Crossing the
@@ -298,6 +414,7 @@ pub fn setup_rig_core(mut commands: Commands, poses: Res<PoseLibrary>) {
     commands.insert_resource(RigSkeleton(skeleton));
     commands.insert_resource(idle_revert);
     commands.insert_resource(PoseApplyMode::Absolute);
+    commands.insert_resource(GroundOffset::default());
 }
 
 /// Startup: spawn whichever visual [`ActiveVariant`] selected at launch.
@@ -1046,6 +1163,7 @@ pub fn advance_playback(
     live_state: Res<crate::live_state::LiveState>,
     apply_mode: Res<PoseApplyMode>,
     shared_expressions: Res<crate::v2_expressions::SharedExpressionState>,
+    ground_offset: Res<GroundOffset>,
     mut playback: ResMut<RigPlayback>,
     mut idle: ResMut<IdleRevert>,
     mut transforms: Query<&mut Transform>,
@@ -1102,7 +1220,7 @@ pub fn advance_playback(
                 if let Ok(mut transform) = transforms.get_mut(entity) {
                     let is_root = skeleton.0.joint(*joint_id).parent.is_none();
                     transform.translation = if is_root {
-                        *translation + Vec3::new(0.0, ROOT_HEIGHT, 0.0)
+                        *translation + Vec3::new(0.0, ROOT_HEIGHT + ground_offset.manual, 0.0)
                     } else {
                         *translation
                     };

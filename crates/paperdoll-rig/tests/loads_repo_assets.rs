@@ -3,7 +3,7 @@
 //! humanoid skeleton. This is what would break if someone hand-edited a YAML file
 //! with a typo'd joint name or a bad pose reference.
 
-use paperdoll_rig::{load_animations_from_dir, load_poses_from_dir, Skeleton};
+use paperdoll_rig::{load_animations_from_dir, load_hand_gestures_from_dir, load_poses_from_dir, Skeleton};
 use std::path::Path;
 
 fn repo_root() -> &'static Path {
@@ -18,7 +18,7 @@ fn repo_root() -> &'static Path {
 fn repo_pose_and_animation_assets_load_and_resolve() {
     let root = repo_root();
     let poses = load_poses_from_dir(&root.join("assets/poses")).expect("poses should load");
-    assert_eq!(poses.len(), 28);
+    assert_eq!(poses.len(), 29);
     assert!(poses.contains_key("t_pose"));
     assert!(poses.contains_key("wave"));
     assert!(poses.contains_key("wave_return"));
@@ -38,7 +38,7 @@ fn repo_pose_and_animation_assets_load_and_resolve() {
 
     let animations = load_animations_from_dir(&root.join("assets/animations"), &poses)
         .expect("animations should load and resolve pose references");
-    assert_eq!(animations.len(), 15);
+    assert_eq!(animations.len(), 16);
     assert!(animations.contains_key("vrma_clapping"));
     assert!(animations.contains_key("vrma_jump"));
     assert!(animations.contains_key("vrma_goodbye"));
@@ -52,6 +52,13 @@ fn repo_pose_and_animation_assets_load_and_resolve() {
     assert!(animations.contains_key("happy_bounce"));
     assert!(animations.contains_key("joy_hop_circle"));
     assert!(animations.contains_key("anime_idol_dance"));
+
+    let hands = load_hand_gestures_from_dir(&root.join("assets/hands"))
+        .expect("hand gestures should load");
+    assert_eq!(hands.len(), 7);
+    for name in ["fist", "open", "point", "peace", "high_five", "thumbs_up", "relaxed"] {
+        assert!(hands.contains_key(name), "missing built-in hand gesture '{name}'");
+    }
 
     let skeleton = Skeleton::humanoid_default();
     for pose in poses.values() {

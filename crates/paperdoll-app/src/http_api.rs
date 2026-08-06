@@ -19,8 +19,8 @@ use crate::agent_capabilities::{
 use crate::editor_state::SharedEditorState;
 use crate::live_state::{LiveState, LiveStateSnapshot};
 use crate::rig_bridge::{
-    AnimationLibrary, PoseLibrary, RigCommand, RigCommandReceiver, RigCommandSender,
-    ANIMATIONS_DIR, POSES_DIR,
+    AnimationLibrary, HandGestureLibrary, PoseLibrary, RigCommand, RigCommandReceiver,
+    RigCommandSender, ANIMATIONS_DIR, HANDS_DIR, POSES_DIR,
 };
 use crate::vrma_import::{import_all_demo_motions, import_vrma_file, safe_assets_relative_path};
 use crate::screenshot_bridge::{ScreenshotRequest, ScreenshotRequestReceiver};
@@ -35,7 +35,10 @@ use axum::{
     Json, Router,
 };
 use bevy::prelude::*;
-use paperdoll_rig::{resolve_animation, Animation, AnimationFile, Easing, Pose, Skeleton, VrmaImportConfig};
+use paperdoll_rig::{
+    resolve_animation, Animation, AnimationFile, Easing, HandGesture, HAND_GESTURE_JOINT_KEYS,
+    Pose, Skeleton, VrmaImportConfig,
+};
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::{Arc, RwLock};
@@ -55,6 +58,7 @@ const SCREENSHOT_TIMEOUT: Duration = Duration::from_secs(5);
 struct ApiState {
     poses: Arc<RwLock<HashMap<String, Pose>>>,
     animations: Arc<RwLock<HashMap<String, Animation>>>,
+    hands: Arc<RwLock<HashMap<String, HandGesture>>>,
     live_state: LiveState,
     variant: SharedVariantState,
     expressions: SharedExpressionState,
@@ -238,6 +242,12 @@ async fn get_animations(State(state): State<ApiState>) -> Json<Vec<String>> {
     Json(names)
 }
 
+async fn get_hands(State(state): State<ApiState>) -> Json<Vec<String>> {
+    let mut names: Vec<String> = state.hands.read().unwrap().keys().cloned().collect();
+    names.sort();
+    Json(names)
+}
+
 /// Current joint rotations (degrees) + camera orbit + playback mode. Updated every
 /// Bevy frame from the live `PlaybackState` snapshot — agents use this alongside
 /// `GET /screenshot` to close the verify loop without reading pixels.
@@ -276,6 +286,42 @@ async fn post_register_pose(
             StatusCode::CREATED
         },
         Json(serde_json::json!({ "pose": name })),
+    )
+}
+
+/// Registers a new hand gesture (or overwrites an existing one by name) directly into
+/// the shared library — the same `Arc<RwLock<_>>` the pose editor reads each frame, so
+/// a newly registered gesture shows up there immediately. Joint keys are validated
+/// against the known side-agnostic finger set ([`HAND_GESTURE_JOINT_KEYS`]).
+async fn post_register_hand(
+    State(state): State<ApiState>,
+    Json(gesture): Json<HandGesture>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let keys: std::collections::HashSet<&str> =
+        HAND_GESTURE_JOINT_KEYS.iter().copied().collect();
+    if let Some(unknown) = gesture.joints.keys().find(|k| !keys.contains(k.as_str())) {
+        return (
+            StatusCode::BAD_REQUEST,
+            error_body(format!(
+                "unknown gesture joint '{unknown}' — expected one of {}",
+                HAND_GESTURE_JOINT_KEYS.join(", ")
+            )),
+        );
+    }
+    let name = gesture.name.clone();
+    let replaced = state
+        .hands
+        .write()
+        .unwrap()
+        .insert(name.clone(), gesture)
+        .is_some();
+    (
+        if replaced {
+            StatusCode::OK
+        } else {
+            StatusCode::CREATED
+        },
+        Json(serde_json::json!({ "hand": name })),
     )
 }
 
@@ -532,14 +578,26 @@ async fn get_capabilities(State(state): State<ApiState>) -> Json<serde_json::Val
         .map(|e| serde_json::to_value(e).unwrap())
         .collect();
 
-    let (example_poses, example_animations, pose_catalog, animation_catalog) = {
+    let (example_poses, example_animations, pose_catalog, animation_catalog, hand_catalog) = {
         let poses = state.poses.read().unwrap();
         let animations = state.animations.read().unwrap();
+        let hands = state.hands.read().unwrap();
+        let mut hand_catalog: Vec<serde_json::Value> = hands
+            .values()
+            .map(|g| {
+                serde_json::json!({
+                    "name": g.name,
+                    "joints": g.joints.keys().cloned().collect::<Vec<_>>(),
+                })
+            })
+            .collect();
+        hand_catalog.sort_by_key(|v| v["name"].as_str().unwrap_or("").to_string());
         (
             build_example_poses(&poses),
             build_example_animations(&animations, &poses),
             build_pose_catalog(&poses),
             build_animation_catalog(&animations, &poses),
+            hand_catalog,
         )
     };
 
@@ -696,6 +754,18 @@ async fn get_capabilities(State(state): State<ApiState>) -> Json<serde_json::Val
         "example_animations": example_animations,
         "pose_catalog": pose_catalog,
         "animation_catalog": animation_catalog,
+        "hand_catalog": hand_catalog,
+        "hand_shape": {
+            "name": "string, required — a name from GET /hands",
+            "description": "string, optional",
+            "joints": format!(
+                "side-agnostic finger joints keyed WITHOUT a left_/right_ prefix \
+                (e.g. index_proximal, thumb_metacarpal). Keys must be from: {}. \
+                Same rotation_deg shape as a pose joint. The pose editor prefixes the \
+                active hand's side when applying, and mirrors it when symmetrical.",
+                HAND_GESTURE_JOINT_KEYS.join(", ")
+            ),
+        },
         "camera_shape": {
             "yaw_deg": "number, optional — horizontal orbit around look_at (degrees). \
                 0 looks along +Z; positive toward +X. Omitted = keep current yaw.",
@@ -936,6 +1006,7 @@ pub fn start_http_server(
     mut commands: Commands,
     poses: Res<PoseLibrary>,
     animations: Res<AnimationLibrary>,
+    hands: Res<HandGestureLibrary>,
     live_state: Res<LiveState>,
     variant: Res<SharedVariantState>,
     expressions: Res<SharedExpressionState>,
@@ -951,6 +1022,7 @@ pub fn start_http_server(
     let state = ApiState {
         poses: poses.0.clone(),
         animations: animations.0.clone(),
+        hands: hands.0.clone(),
         live_state: live_state.clone(),
         variant: variant.clone(),
         expressions: expressions.clone(),
@@ -973,6 +1045,7 @@ pub fn start_http_server(
                     .route("/animation", post(post_animation))
                     .route("/poses", get(get_poses).post(post_register_pose))
                     .route("/animations", get(get_animations).post(post_register_animation))
+                    .route("/hands", get(get_hands).post(post_register_hand))
                     .route("/import/vrma", post(post_import_vrma))
                     .route("/import/demo-motions", post(post_import_demo_motions))
                     .route("/screenshot", get(get_screenshot))
@@ -982,8 +1055,8 @@ pub fn start_http_server(
                     .unwrap_or_else(|e| panic!("failed to bind HTTP API on {HTTP_ADDR}: {e}"));
                 info!(
                     "pose HTTP API listening on http://{HTTP_ADDR} \
-                     (poses from '{POSES_DIR}', animations from '{ANIMATIONS_DIR}'; \
-                     see GET /capabilities)"
+                     (poses from '{POSES_DIR}', animations from '{ANIMATIONS_DIR}', \
+                     hands from '{HANDS_DIR}'; see GET /capabilities)"
                 );
                 axum::serve(listener, app)
                     .await

@@ -47,9 +47,15 @@ impl Easing {
     }
 }
 
-/// One keyframe as authored in an `assets/animations/*.yaml` file: either a reference
-/// to a named pose, an inline set of joint targets, and/or a camera patch. Camera may
-/// appear alongside a pose/joints reference (orbit while holding a pose) or alone
+/// One keyframe as authored in an `assets/animations/*.yaml` file.
+///
+/// **Base + delta:** `pose` names a library pose; optional `joints` are per-joint
+/// overrides merged on top (listed joints win). With `hold: true`, only the listed
+/// `joints` move as a sparse overlay — the base pose body is not applied.
+///
+/// **Fully inline:** omit `pose` and set `joints` for a standalone pose snapshot.
+///
+/// Camera may appear alongside pose/joints (orbit while holding a pose) or alone
 /// (camera-only move; joints stay wherever they are via an empty pose).
 ///
 /// Optional `expressions` overlay VRM morph weights onto the resolved pose (or alone
@@ -59,7 +65,7 @@ impl Easing {
 /// expressions move, and every unlisted joint/expression keeps its current value
 /// instead of resetting to rest / zero — this is how a blink can ride on top of an
 /// ongoing body pose.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct KeyframeSpec {
     #[serde(default)]
     pub pose: Option<String>,
@@ -97,12 +103,47 @@ pub struct AnimationFile {
 }
 
 /// A keyframe with its pose fully resolved (name reference or inline joints already
-/// materialized into a concrete [`Pose`]).
+/// materialized into a concrete [`Pose`]). [`authoring`] preserves the original
+/// [`KeyframeSpec`] for YAML / HTTP roundtrip (pose ref + delta joints, etc.).
 #[derive(Debug, Clone)]
 pub struct Keyframe {
     pub pose: Pose,
     pub duration_ms: u32,
     pub easing: Easing,
+    pub authoring: KeyframeSpec,
+}
+
+impl Keyframe {
+    /// Build a resolved keyframe for tests and internal callers that don't need
+    /// roundtrip metadata beyond duration/easing.
+    pub fn for_test(pose: Pose, duration_ms: u32, easing: Easing) -> Self {
+        Self {
+            authoring: KeyframeSpec {
+                pose: None,
+                joints: if pose.joints.is_empty() {
+                    None
+                } else {
+                    Some(pose.joints.clone())
+                },
+                camera: pose.camera.clone(),
+                expressions: if pose.expressions.is_empty() {
+                    None
+                } else {
+                    Some(pose.expressions.clone())
+                },
+                hold: if pose.hold_joints {
+                    Some(true)
+                } else {
+                    None
+                },
+                duration_ms,
+                easing,
+            },
+            pose,
+            duration_ms,
+            easing,
+        }
+    }
 }
 
 /// An ordered sequence of resolved keyframes, ready to be played by

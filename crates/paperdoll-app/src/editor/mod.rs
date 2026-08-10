@@ -1,9 +1,11 @@
 mod apply;
 mod hand_presets;
 mod joints;
+mod keyframe_joints;
 mod posing_guide;
 mod session;
 mod symmetry;
+mod timeline;
 mod viewport;
 
 pub use apply::{
@@ -18,7 +20,10 @@ use crate::editor::hand_presets::{
     apply_hand_gesture, capture_hand_gesture, raised_right_hand_shot_camera, sorted_gestures,
     HAND_SHOT_POSE_NAME,
 };
-use crate::editor::session::{euler_for_joint, set_joint_euler, unique_name};
+use crate::editor::session::{
+    euler_for_active_joint, joint_editing_active, set_active_joint_euler,
+    unique_name,
+};
 use crate::editor::symmetry::{side_from_joint, BodySide};
 use crate::rig_bridge::{
     ActiveVariant, AnimationLibrary, HandGestureLibrary, PoseLibrary, RigPlayback, RigSkeleton,
@@ -211,15 +216,16 @@ pub fn editor_ui(
             });
         });
 
-    if session.tab == EditorTab::Pose {
+    if session.tab == EditorTab::Pose || session.tab == EditorTab::Animation {
         egui::SidePanel::right("editor_right")
             .default_width(260.0)
             .frame(panel_frame(egui::Frame::default()))
             .show(ctx, |ui| {
-                pose_joint_inspector(
+                joint_inspector_panel(
                     ui,
                     &mut session,
                     &mut prefs,
+                    &poses,
                     &hands,
                     &expressions,
                 );
@@ -568,7 +574,6 @@ fn run_pending_action(
             }
             state.draft.name = unique_name("new_pose", &existing);
             state.auto_fill_done = true;
-            state.symmetrical = session.pose.symmetrical;
             session.pose = state;
             session.pose.checkpoint();
             session.info(format!("New pose draft '{}'.", session.pose.draft.name));
@@ -701,7 +706,7 @@ fn stage_camera_panel(
                 prefs.pending_focus = Some("right_hand".into());
             }
             if session.tab == EditorTab::Pose {
-                if let Some(joint) = session.pose.selected_joint.clone() {
+                if let Some(joint) = session.joints.selected_joint.clone() {
                     if ui
                         .button("Selected joint")
                         .on_hover_text("Frame the currently selected joint")
@@ -960,7 +965,7 @@ fn pose_panel(
     });
 
     ui.separator();
-    ui.checkbox(&mut session.pose.symmetrical, "Symmetrical (mirror left ↔ right)")
+    ui.checkbox(&mut session.joints.symmetrical, "Symmetrical (mirror left ↔ right)")
         .on_hover_text("Editing a left/right joint also writes the mirrored rotation to the other side");
     ui.checkbox(&mut session.pose.show_camera, "Camera block")
         .on_hover_text("Edit the pose's optional stage-camera framing (right panel)");
@@ -970,23 +975,23 @@ fn pose_panel(
     ui.separator();
     ui.horizontal(|ui| {
         ui.label("Joints");
-        ui.checkbox(&mut session.pose.modified_only, "modified only")
+        ui.checkbox(&mut session.joints.modified_only, "modified only")
             .on_hover_text("Only list joints already edited in this draft");
     });
-    ui.text_edit_singleline(&mut session.pose.joint_filter)
+    ui.text_edit_singleline(&mut session.joints.joint_filter)
         .on_hover_text("Filter joints by name");
     egui::ScrollArea::vertical().show(ui, |ui| {
         for (group, names) in joints::GROUPS {
             ui.collapsing(*group, |ui| {
                 for name in *names {
-                    if !joints::joint_matches_filter(name, &session.pose.joint_filter) {
+                    if !joints::joint_matches_filter(name, &session.joints.joint_filter) {
                         continue;
                     }
                     let modified = session.pose.draft.joints.contains_key(*name);
-                    if session.pose.modified_only && !modified {
+                    if session.joints.modified_only && !modified {
                         continue;
                     }
-                    let selected = session.pose.selected_joint.as_deref() == Some(*name);
+                    let selected = session.joints.selected_joint.as_deref() == Some(*name);
                     let text = if modified {
                         egui::RichText::new(format!("● {name}")).strong()
                     } else {
@@ -1001,7 +1006,7 @@ fn pose_panel(
                         })
                         .clicked()
                     {
-                        session.pose.selected_joint = Some((*name).to_string());
+                        session.joints.selected_joint = Some((*name).to_string());
                     }
                 }
             });
@@ -1019,14 +1024,32 @@ fn pose_panel(
     let _ = playback;
 }
 
-fn pose_joint_inspector(
+fn joint_inspector_panel(
     ui: &mut egui::Ui,
     session: &mut EditorSession,
     prefs: &mut ViewportPrefs,
+    poses: &PoseLibrary,
     hands: &HandGestureLibrary,
     expressions: &SharedExpressionState,
 ) {
-    if let Some(joint) = session.pose.selected_joint.clone() {
+    if !joint_editing_active(session) {
+        if session.tab == EditorTab::Animation {
+            ui.weak("Joint editing disabled for VRMA clips (vrm_local_rotations).");
+        }
+        return;
+    }
+    if session.tab == EditorTab::Animation {
+        ui.label(
+            egui::RichText::new(format!(
+                "Keyframe #{} joints",
+                session.animation.selected_keyframe
+            ))
+            .small()
+            .weak(),
+        );
+    }
+    let poses_guard = poses.0.read().unwrap();
+    if let Some(joint) = session.joints.selected_joint.clone() {
         ui.horizontal(|ui| {
             ui.heading(&joint);
             if ui
@@ -1045,7 +1068,7 @@ fn pose_joint_inspector(
         if let Some(hint) = posing_guide::hint_for_joint(&joint) {
             ui.label(egui::RichText::new(hint).small().weak());
         }
-        let mut euler = euler_for_joint(&session.pose.draft, &joint);
+        let mut euler = euler_for_active_joint(session, &poses_guard, &joint);
         let mut changed = false;
         ui.horizontal(|ui| {
             ui.label("X");
@@ -1066,25 +1089,39 @@ fn pose_joint_inspector(
                 .changed();
         });
         if changed {
-            set_joint_euler(
-                &mut session.pose.draft,
-                &joint,
-                euler,
-                session.pose.symmetrical,
-            );
+            set_active_joint_euler(session, &poses_guard, &joint, euler);
         }
         if ui
             .button("Clear joint (back to rest)")
             .on_hover_text("Remove this joint's edit so it returns to the rest pose")
             .clicked()
         {
-            session.pose.draft.joints.remove(&joint);
-            if session.pose.symmetrical {
-                if let Some(other) = crate::editor::symmetry::counterpart_joint(&joint) {
-                    session.pose.draft.joints.remove(&other);
+            match session.tab {
+                EditorTab::Pose => {
+                    session.pose.draft.joints.remove(&joint);
+                    if session.joints.symmetrical {
+                        if let Some(other) = crate::editor::symmetry::counterpart_joint(&joint) {
+                            session.pose.draft.joints.remove(&other);
+                        }
+                    }
+                }
+                EditorTab::Animation => {
+                    if let Some(kf) = session
+                        .animation
+                        .draft
+                        .keyframes
+                        .get_mut(session.animation.selected_keyframe)
+                    {
+                        crate::editor::keyframe_joints::clear_keyframe_joint(
+                            kf,
+                            &joint,
+                            session.joints.symmetrical,
+                        );
+                    }
                 }
             }
         }
+        if session.tab == EditorTab::Pose {
         ui.separator();
         ui.heading("Hand shapes");
         ui.label(egui::RichText::new(
@@ -1092,7 +1129,7 @@ fn pose_joint_inspector(
              Gestures load from assets/hands/*.yaml or POST /hands.",
         ).small().weak());
         let active_side = session
-            .pose
+            .joints
             .selected_joint
             .as_deref()
             .and_then(side_from_joint)
@@ -1119,13 +1156,13 @@ fn pose_joint_inspector(
                             &mut session.pose.draft,
                             active_side,
                             gesture,
-                            session.pose.symmetrical,
+                            session.joints.symmetrical,
                         );
                         session.success(format!(
                             "Hand gesture '{}' on {} hand{} ({} joints)",
                             gesture.name,
                             active_side.prefix().trim_end_matches('_'),
-                            if session.pose.symmetrical { ", mirrored" } else { "" },
+                            if session.joints.symmetrical { ", mirrored" } else { "" },
                             n
                         ));
                     }
@@ -1165,11 +1202,12 @@ fn pose_joint_inspector(
                 }
             }
         });
+        }
     } else {
         ui.label("Select a joint from the list (or click a bone in the viewport).");
     }
 
-    if session.pose.show_camera {
+    if session.tab == EditorTab::Pose && session.pose.show_camera {
         ui.separator();
         ui.heading("Camera");
         let cam = session.pose.draft.camera.get_or_insert_with(CameraTarget::default);
@@ -1185,7 +1223,7 @@ fn pose_joint_inspector(
         }
     }
 
-    if session.pose.show_expressions {
+    if session.tab == EditorTab::Pose && session.pose.show_expressions {
         ui.separator();
         ui.heading("Expressions");
         let snap = expressions.snapshot();
@@ -1372,9 +1410,6 @@ fn anim_panel(
         ui.weak("Set blend ms on keyframe #1+ (#0 is the start pose at t=0).");
     }
 
-    ui.label(format!(
-        "Timeline: {total_ms} ms playable (#0 = start pose; blend ms applies from #1 on)"
-    ));
     ui.horizontal(|ui| {
         let can_play = total_ms > 0 && resolve_err.is_none();
         if ui
@@ -1403,22 +1438,85 @@ fn anim_panel(
             session.animation.playing = false;
             session.animation.playhead_ms = 0;
         }
-        ui.label(format!("{} / {} ms", session.animation.playhead_ms, total_ms));
+        let can_split = total_ms > 0
+            && resolve_err.is_none()
+            && session.animation.playhead_ms >= timeline::MIN_BLEND_MS
+            && session.animation.playhead_ms <= total_ms.saturating_sub(timeline::MIN_BLEND_MS);
+        if ui
+            .add_enabled(can_split, egui::Button::new("Split at playhead"))
+            .on_hover_text(
+                "Insert a keyframe at the playhead with the interpolated pose (min 40 ms per side)",
+            )
+            .clicked()
+        {
+            if let Ok(resolved) = resolve_editor_animation(&session.animation.draft, poses) {
+                if let Some(idx) = timeline::split_keyframes_at_playhead(
+                    &mut session.animation.draft.keyframes,
+                    session.animation.playhead_ms,
+                    &skeleton.0,
+                    &resolved,
+                ) {
+                    session.animation.selected_keyframe = idx;
+                    session.animation.playing = false;
+                    session.info(format!(
+                        "Split at {} ms → new inline keyframe #{idx}.",
+                        session.animation.playhead_ms
+                    ));
+                } else {
+                    session.info(
+                        "Can't split here — playhead must sit inside a segment with ≥40 ms on each side.",
+                    );
+                }
+            }
+        }
+        ui.weak("#0 = start pose; blend ms on #1+");
     });
 
     if total_ms > 0 {
         session.animation.playhead_ms = session.animation.playhead_ms.min(total_ms);
-        let mut playhead = session.animation.playhead_ms as f32;
-        if ui
-            .add(egui::Slider::new(&mut playhead, 0.0..=total_ms as f32).text("scrub"))
-            .changed()
-        {
-            session.animation.playhead_ms = playhead.round() as u32;
-            session.animation.playing = false;
-        }
     } else {
         session.animation.playhead_ms = 0;
-        ui.add_enabled(false, egui::Slider::new(&mut 0.0f32, 0.0..=1.0).text("scrub"));
+    }
+
+    let tl = {
+        let w = ui.available_width();
+        ui.scope(|ui| {
+            ui.set_width(w);
+            timeline::animation_timeline(
+                ui,
+                &mut session.animation.draft.keyframes,
+                session.animation.selected_keyframe,
+                session.animation.playhead_ms,
+            )
+        })
+        .inner
+    };
+    if tl.timing_edited {
+        session.animation.playing = false;
+    }
+    if let Some(i) = tl.selected_keyframe {
+        session.animation.selected_keyframe = i;
+        if !tl.timing_edited {
+            session.animation.playhead_ms =
+                timeline::keyframe_arrival_ms(&session.animation.draft.keyframes, i);
+        }
+        session.animation.playing = false;
+    }
+    if let Some(ms) = tl.playhead_ms {
+        session.animation.playhead_ms = ms.min(total_ms);
+        session.animation.playing = false;
+    }
+    if let Some(i) = tl.preview_camera_keyframe {
+        if let Some(patch) = session
+            .animation
+            .draft
+            .keyframes
+            .get(i)
+            .and_then(|kf| kf.camera.clone())
+        {
+            apply_viewport_camera_patch(&mut viewport.orbit, &patch);
+            viewport.user_orbiting = false;
+        }
     }
 
     // Save.
@@ -1448,6 +1546,41 @@ fn anim_panel(
     });
 
     ui.separator();
+
+    let pose_names: Vec<String> = {
+        let mut v: Vec<_> = poses.0.read().unwrap().keys().cloned().collect();
+        v.sort();
+        v
+    };
+
+    egui::ScrollArea::vertical()
+        .id_salt("anim_keyframe_scroll")
+        .auto_shrink([false, false])
+        .show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
+            keyframe_list_panel(
+                ui,
+                session,
+                viewport,
+                poses,
+                skeleton,
+                playback,
+                expressions,
+                &pose_names,
+            );
+        });
+}
+
+fn keyframe_list_panel(
+    ui: &mut egui::Ui,
+    session: &mut EditorSession,
+    viewport: &mut ViewportCamera,
+    poses: &PoseLibrary,
+    skeleton: &RigSkeleton,
+    playback: &RigPlayback,
+    expressions: &SharedExpressionState,
+    pose_names: &[String],
+) {
     ui.horizontal(|ui| {
         ui.label("Keyframes");
         if ui
@@ -1532,19 +1665,12 @@ fn anim_panel(
         }
     });
 
-    let pose_names: Vec<String> = {
-        let mut v: Vec<_> = poses.0.read().unwrap().keys().cloned().collect();
-        v.sort();
-        v
-    };
-
     let mut apply_kf_camera: Option<CameraTarget> = None;
-    egui::ScrollArea::vertical().max_height(280.0).show(ui, |ui| {
-        let mut remove_at: Option<usize> = None;
-        let mut move_up: Option<usize> = None;
-        let mut move_down: Option<usize> = None;
-        let len = session.animation.draft.keyframes.len();
-        for (i, kf) in session.animation.draft.keyframes.iter_mut().enumerate() {
+    let mut remove_at: Option<usize> = None;
+    let mut move_up: Option<usize> = None;
+    let mut move_down: Option<usize> = None;
+    let len = session.animation.draft.keyframes.len();
+    for (i, kf) in session.animation.draft.keyframes.iter_mut().enumerate() {
             let selected = session.animation.selected_keyframe == i;
             ui.group(|ui| {
                 ui.horizontal(|ui| {
@@ -1585,7 +1711,7 @@ fn anim_panel(
                                 kf.pose = None;
                                 kf.joints.get_or_insert_with(HashMap::new);
                             }
-                            for p in &pose_names {
+                            for p in pose_names {
                                 if ui.selectable_label(false, p).clicked() {
                                     kf.pose = Some(p.clone());
                                     kf.joints = None;
@@ -1632,14 +1758,13 @@ fn anim_panel(
             };
         }
         if let Some(i) = move_down {
-            session.animation.draft.keyframes.swap(i, i + 1);
-            session.animation.selected_keyframe = match session.animation.selected_keyframe {
-                x if x == i => i + 1,
-                x if x == i + 1 => i,
-                x => x,
-            };
-        }
-    });
+        session.animation.draft.keyframes.swap(i, i + 1);
+        session.animation.selected_keyframe = match session.animation.selected_keyframe {
+            x if x == i => i + 1,
+            x if x == i + 1 => i,
+            x => x,
+        };
+    }
     if let Some(cam) = apply_kf_camera {
         apply_viewport_camera_patch(&mut viewport.orbit, &cam);
         viewport.user_orbiting = false;
@@ -1657,6 +1782,108 @@ fn anim_panel(
             "Keyframe #{} detail",
             session.animation.selected_keyframe
         ));
+
+        let kf_idx = session.animation.selected_keyframe;
+        let can_edit_joints =
+            keyframe_joints::keyframe_joint_editing_enabled(&session.animation.draft);
+        let poses_guard = poses.0.read().unwrap();
+
+        ui.horizontal(|ui| {
+            if ui
+                .button("Preview this keyframe")
+                .on_hover_text("Scrub to this keyframe and pause so the rig shows this pose")
+                .clicked()
+            {
+                session.animation.playhead_ms =
+                    timeline::keyframe_arrival_ms(&session.animation.draft.keyframes, kf_idx);
+                session.animation.playing = false;
+            }
+            if ui
+                .button("Duplicate")
+                .on_hover_text("Copy this keyframe after itself (Ctrl+D soon)")
+                .clicked()
+            {
+                if let Some(kf) = session.animation.draft.keyframes.get(kf_idx).cloned() {
+                    session.animation.draft.keyframes.insert(kf_idx + 1, kf);
+                    session.animation.selected_keyframe = kf_idx + 1;
+                }
+            }
+        });
+
+        if can_edit_joints {
+            if let Some(kf) = session.animation.draft.keyframes.get(kf_idx) {
+                if let Some(pose_name) = &kf.pose {
+                    ui.label(format!("Base pose: '{pose_name}'"));
+                    let n = keyframe_joints::keyframe_delta_count(kf);
+                    ui.label(format!("Δ overrides: {n} joint(s)"));
+                } else {
+                    ui.label("Inline keyframe (no pose ref)");
+                }
+            }
+            ui.horizontal(|ui| {
+                if ui
+                    .button("Clear Δ overrides")
+                    .on_hover_text("Remove per-joint deltas; keep pose ref if any")
+                    .clicked()
+                {
+                    if let Some(kf) = session.animation.draft.keyframes.get_mut(kf_idx) {
+                        keyframe_joints::clear_keyframe_joint_overrides(kf);
+                    }
+                }
+                if ui
+                    .button("Bake inline")
+                    .on_hover_text("Merge base pose + deltas into a standalone inline keyframe")
+                    .clicked()
+                {
+                    if let Some(kf) = session.animation.draft.keyframes.get_mut(kf_idx) {
+                        keyframe_joints::bake_keyframe_inline(kf, &poses_guard);
+                        session.info(format!("Baked keyframe #{kf_idx} inline."));
+                    }
+                }
+            });
+            ui.checkbox(&mut session.joints.symmetrical, "Symmetrical")
+                .on_hover_text("Mirror left ↔ right joint edits");
+            ui.horizontal(|ui| {
+                ui.label("Joints");
+                ui.checkbox(&mut session.joints.modified_only, "modified only");
+            });
+            ui.text_edit_singleline(&mut session.joints.joint_filter);
+            egui::ScrollArea::vertical().max_height(160.0).show(ui, |ui| {
+                for (group, names) in joints::GROUPS {
+                    ui.collapsing(*group, |ui| {
+                        for name in *names {
+                            if !joints::joint_matches_filter(name, &session.joints.joint_filter) {
+                                continue;
+                            }
+                            let kf = session.animation.draft.keyframes.get(kf_idx).unwrap();
+                            let modified = keyframe_joints::keyframe_joint_modified(kf, name);
+                            if session.joints.modified_only && !modified {
+                                continue;
+                            }
+                            let selected = session.joints.selected_joint.as_deref() == Some(*name);
+                            let text = if modified {
+                                egui::RichText::new(format!("Δ {name}")).strong()
+                            } else {
+                                egui::RichText::new(*name)
+                            };
+                            if ui.selectable_label(selected, text).clicked() {
+                                session.joints.selected_joint = Some((*name).to_string());
+                                session.animation.playhead_ms = timeline::keyframe_arrival_ms(
+                                    &session.animation.draft.keyframes,
+                                    kf_idx,
+                                );
+                                session.animation.playing = false;
+                            }
+                        }
+                    });
+                }
+            });
+            ui.separator();
+        } else {
+            ui.weak("VRMA clip — joint/delta editing disabled.");
+        }
+        drop(poses_guard);
+
         if let Some(expr) = &session
             .animation
             .draft
@@ -1898,7 +2125,7 @@ pub fn editor_keyboard_shortcuts(
     }
     let shift = keys.pressed(KeyCode::ShiftLeft) || keys.pressed(KeyCode::ShiftRight);
     let active = session
-        .pose
+        .joints
         .selected_joint
         .as_deref()
         .and_then(side_from_joint)
@@ -1931,7 +2158,7 @@ pub fn editor_keyboard_shortcuts(
         let Some(gesture) = gesture else {
             continue;
         };
-        let symmetrical = session.pose.symmetrical;
+        let symmetrical = session.joints.symmetrical;
         apply_hand_gesture(
             &mut session.pose.draft,
             side,

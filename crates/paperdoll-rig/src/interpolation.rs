@@ -677,21 +677,9 @@ mod tests {
             vrm_local_rotations: false,
             play_automatically: false,
             keyframes: vec![
-                Keyframe {
-                    pose: pose_with_rotation("start", "right_shoulder", 0.0),
-                    duration_ms: 100,
-                    easing: Easing::Linear,
-                },
-                Keyframe {
-                    pose: pose_with_rotation("mid", "right_shoulder", -45.0),
-                    duration_ms: 200,
-                    easing: Easing::Linear,
-                },
-                Keyframe {
-                    pose: pose_with_rotation("end", "right_shoulder", 0.0),
-                    duration_ms: 200,
-                    easing: Easing::Linear,
-                },
+                Keyframe::for_test(pose_with_rotation("start", "right_shoulder", 0.0), 100, Easing::Linear),
+                Keyframe::for_test(pose_with_rotation("mid", "right_shoulder", -45.0), 200, Easing::Linear),
+                Keyframe::for_test(pose_with_rotation("end", "right_shoulder", 0.0), 200, Easing::Linear),
             ],
         };
 
@@ -842,16 +830,8 @@ mod tests {
             vrm_local_rotations: false,
             play_automatically: false,
             keyframes: vec![
-                Keyframe {
-                    pose: pose_with_rotation("start", "right_shoulder", 0.0),
-                    duration_ms: 10,
-                    easing: Easing::Linear,
-                },
-                Keyframe {
-                    pose: pose_with_rotation("end", "right_shoulder", -90.0),
-                    duration_ms: 1000,
-                    easing: Easing::Linear,
-                },
+                Keyframe::for_test(pose_with_rotation("start", "right_shoulder", 0.0), 10, Easing::Linear),
+                Keyframe::for_test(pose_with_rotation("end", "right_shoulder", -90.0), 1000, Easing::Linear),
             ],
         };
 
@@ -881,16 +861,8 @@ mod tests {
             vrm_local_rotations: false,
             play_automatically: false,
             keyframes: vec![
-                Keyframe {
-                    pose: pose_with_rotation("a", "right_shoulder", 0.0),
-                    duration_ms: 100,
-                    easing: Easing::Linear,
-                },
-                Keyframe {
-                    pose: pose_with_rotation("b", "right_shoulder", -45.0),
-                    duration_ms: 100,
-                    easing: Easing::Linear,
-                },
+                Keyframe::for_test(pose_with_rotation("a", "right_shoulder", 0.0), 100, Easing::Linear),
+                Keyframe::for_test(pose_with_rotation("b", "right_shoulder", -45.0), 100, Easing::Linear),
             ],
         };
         let mut state = PlaybackState::new();
@@ -992,16 +964,8 @@ mod tests {
             vrm_local_rotations: false,
             play_automatically: false,
             keyframes: vec![
-                Keyframe {
-                    pose: pose_with_rotation("start", "right_shoulder", 0.0),
-                    duration_ms: 0,
-                    easing: Easing::Linear,
-                },
-                Keyframe {
-                    pose: pose_with_rotation("end", "right_shoulder", -90.0),
-                    duration_ms: 1000,
-                    easing: Easing::Linear,
-                },
+                Keyframe::for_test(pose_with_rotation("start", "right_shoulder", 0.0), 0, Easing::Linear),
+                Keyframe::for_test(pose_with_rotation("end", "right_shoulder", -90.0), 1000, Easing::Linear),
             ],
         };
 

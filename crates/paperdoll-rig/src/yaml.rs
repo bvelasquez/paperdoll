@@ -21,7 +21,7 @@ pub enum YamlLoadError {
     },
     #[error(
         "animation '{animation}' keyframe {index} must set `pose`, `joints`, `camera`, \
-         and/or `expressions` (and must not set both `pose` and `joints`)"
+         and/or `expressions` (invalid combination)"
     )]
     InvalidKeyframe { animation: String, index: usize },
 }
@@ -101,56 +101,8 @@ pub fn animation_to_file(animation: &Animation) -> AnimationFile {
     }
 }
 
-fn synthetic_keyframe_pose_name(animation_name: &str, index: usize) -> String {
-    format!("{animation_name}#{index}")
-}
-
-fn keyframe_to_authoring_spec(animation_name: &str, index: usize, kf: &Keyframe) -> KeyframeSpec {
-    let pose = &kf.pose;
-    if pose.name == synthetic_keyframe_pose_name(animation_name, index) {
-        let hold = if pose.hold_joints
-            && (!pose.expressions.is_empty() || !pose.joints.is_empty())
-        {
-            Some(true)
-        } else {
-            None
-        };
-        return KeyframeSpec {
-            pose: None,
-            joints: if pose.joints.is_empty() {
-                None
-            } else {
-                Some(pose.joints.clone())
-            },
-            camera: pose.camera.clone(),
-            expressions: if pose.expressions.is_empty() {
-                None
-            } else {
-                Some(pose.expressions.clone())
-            },
-            hold,
-            duration_ms: kf.duration_ms,
-            easing: kf.easing,
-        };
-    }
-
-    KeyframeSpec {
-        pose: Some(pose.name.clone()),
-        joints: None,
-        camera: pose.camera.clone(),
-        expressions: if pose.expressions.is_empty() {
-            None
-        } else {
-            Some(pose.expressions.clone())
-        },
-        hold: if pose.hold_joints && !pose.joints.is_empty() {
-            Some(true)
-        } else {
-            None
-        },
-        duration_ms: kf.duration_ms,
-        easing: kf.easing,
-    }
+fn keyframe_to_authoring_spec(_animation_name: &str, _index: usize, kf: &Keyframe) -> KeyframeSpec {
+    kf.authoring.clone()
 }
 
 /// Resolves a raw [`AnimationFile`] (parsed from a YAML file, or from JSON POSTed to
@@ -165,11 +117,13 @@ pub fn resolve_animation(
 ) -> Result<Animation, YamlLoadError> {
     let mut keyframes = Vec::with_capacity(file.keyframes.len());
     for (index, spec) in file.keyframes.iter().enumerate() {
-        let pose = resolve_keyframe_pose(&file.name, index, spec, poses)?;
+        let spec = spec.clone();
+        let pose = resolve_keyframe_pose(&file.name, index, &spec, poses)?;
         keyframes.push(Keyframe {
             pose,
             duration_ms: spec.duration_ms,
             easing: spec.easing,
+            authoring: spec,
         });
     }
     Ok(Animation {
@@ -201,6 +155,35 @@ fn resolve_keyframe_pose(
                 index,
                 pose_name: name.clone(),
             })?,
+        (Some(name), Some(joints)) if spec.hold.unwrap_or(false) => {
+            let base = poses.get(name).ok_or_else(|| YamlLoadError::UnknownPoseRef {
+                animation: animation_name.to_string(),
+                index,
+                pose_name: name.clone(),
+            })?;
+            Pose {
+                name: base.name.clone(),
+                description: None,
+                joints: joints.clone(),
+                camera: None,
+                expressions: HashMap::new(),
+                hold_joints: false,
+            }
+        }
+        (Some(name), Some(joints)) => {
+            let mut merged = poses
+                .get(name)
+                .cloned()
+                .ok_or_else(|| YamlLoadError::UnknownPoseRef {
+                    animation: animation_name.to_string(),
+                    index,
+                    pose_name: name.clone(),
+                })?;
+            for (joint, target) in joints {
+                merged.joints.insert(joint.clone(), target.clone());
+            }
+            merged
+        }
         (None, Some(joints)) => Pose {
             name: format!("{animation_name}#{index}"),
             description: None,
@@ -511,6 +494,111 @@ keyframes:
         assert!(file.keyframes[1].pose.is_none());
         assert_eq!(file.keyframes[1].hold, Some(true));
         assert!(file.keyframes[1].expressions.is_some());
+    }
+
+    #[test]
+    fn keyframe_pose_plus_joint_delta_merges_over_base() {
+        let mut poses = HashMap::new();
+        let mut base_joints = HashMap::new();
+        base_joints.insert(
+            "right_shoulder".into(),
+            crate::pose::JointTarget {
+                rotation_deg: Some(crate::pose::EulerDeg {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 10.0,
+                }),
+                rotation_quat: None,
+                translation: None,
+            },
+        );
+        poses.insert(
+            "hand_over_head".into(),
+            Pose {
+                name: "hand_over_head".into(),
+                description: None,
+                joints: base_joints,
+                camera: None,
+                expressions: HashMap::new(),
+                hold_joints: false,
+            },
+        );
+        let file: AnimationFile = serde_yaml::from_str(
+            r#"
+name: wave_wink
+keyframes:
+  - pose: hand_over_head
+    joints:
+      right_shoulder:
+        rotation_deg: { z: 95.0 }
+    expressions: { wink_right: 1.0 }
+    duration_ms: 400
+    easing: ease_in_out
+"#,
+        )
+        .unwrap();
+        let animation = resolve_animation(file.clone(), &poses).unwrap();
+        let shoulder = animation.keyframes[0]
+            .pose
+            .joints
+            .get("right_shoulder")
+            .unwrap()
+            .rotation_deg
+            .unwrap();
+        assert!((shoulder.z - 95.0).abs() < 1e-6);
+        assert!((animation.keyframes[0].pose.expressions["wink_right"] - 1.0).abs() < 1e-6);
+
+        let roundtrip = animation_to_file(&animation);
+        assert_eq!(roundtrip.keyframes[0].pose.as_deref(), Some("hand_over_head"));
+        assert_eq!(
+            roundtrip.keyframes[0]
+                .joints
+                .as_ref()
+                .and_then(|j| j.get("right_shoulder"))
+                .and_then(|t| t.rotation_deg)
+                .map(|e| e.z),
+            Some(95.0)
+        );
+        let again = resolve_animation(roundtrip, &poses).unwrap();
+        assert!((again.keyframes[0].pose.joints["right_shoulder"]
+            .rotation_deg
+            .unwrap()
+            .z
+            - 95.0)
+            .abs()
+            < 1e-6);
+    }
+
+    #[test]
+    fn keyframe_pose_plus_delta_with_hold_is_sparse() {
+        let mut poses = HashMap::new();
+        poses.insert(
+            "idle".into(),
+            Pose {
+                name: "idle".into(),
+                description: None,
+                joints: HashMap::new(),
+                camera: None,
+                expressions: HashMap::new(),
+                hold_joints: false,
+            },
+        );
+        let file: AnimationFile = serde_yaml::from_str(
+            r#"
+name: blink
+keyframes:
+  - pose: idle
+    joints:
+      eyelid_right: { rotation_deg: { z: 20.0 } }
+    hold: true
+    duration_ms: 100
+"#,
+        )
+        .unwrap();
+        let animation = resolve_animation(file, &poses).unwrap();
+        assert!(animation.keyframes[0].pose.hold_joints);
+        assert_eq!(animation.keyframes[0].pose.joints.len(), 1);
+        assert!(animation.keyframes[0].pose.joints.contains_key("eyelid_right"));
     }
 
     #[test]

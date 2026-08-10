@@ -76,12 +76,21 @@ impl Confirm {
     }
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct JointInspectorState {
+    pub selected_joint: Option<String>,
+    pub joint_filter: String,
+    pub modified_only: bool,
+    pub symmetrical: bool,
+}
+
 #[derive(Resource)]
 pub struct EditorSession {
     pub open: bool,
     pub tab: EditorTab,
     pub pose: PoseEditorState,
     pub animation: AnimationEditorState,
+    pub joints: JointInspectorState,
     /// Latest status line; colored by [`Self::status_kind`].
     pub status: String,
     pub status_kind: StatusKind,
@@ -103,6 +112,7 @@ impl Default for EditorSession {
             tab: EditorTab::Pose,
             pose: PoseEditorState::default(),
             animation: AnimationEditorState::default(),
+            joints: JointInspectorState::default(),
             status: "Play mode — F2 opens the pose/animation editor.".into(),
             status_kind: StatusKind::Info,
             status_history: VecDeque::new(),
@@ -181,16 +191,10 @@ pub struct PoseEditorState {
     pub checkpoint: Option<Pose>,
     /// Library name the draft was loaded from (None = never loaded/saved).
     pub loaded_name: Option<String>,
-    pub selected_joint: Option<String>,
-    pub joint_filter: String,
-    /// Only list joints already present in the draft.
-    pub modified_only: bool,
     pub show_camera: bool,
     pub show_expressions: bool,
     /// Name for the "save current hand as gesture" inline field.
     pub publish_hand_name: String,
-    /// When true, editing a left/right pair mirrors euler to the counterpart joint.
-    pub symmetrical: bool,
     /// Set once the empty default draft has been auto-filled from `idle` so a
     /// deliberate "clear all joints" doesn't get silently refilled.
     pub auto_fill_done: bool,
@@ -220,12 +224,8 @@ impl Default for PoseEditorState {
             },
             checkpoint: None,
             loaded_name: None,
-            selected_joint: None,
-            joint_filter: String::new(),
-            modified_only: false,
             show_camera: false,
             show_expressions: false,
-            symmetrical: false,
             auto_fill_done: false,
             publish_hand_name: String::new(),
         }
@@ -291,4 +291,55 @@ pub fn euler_for_joint(pose: &Pose, joint: &str) -> EulerDeg {
 
 pub fn set_joint_euler(pose: &mut Pose, joint: &str, euler: EulerDeg, symmetrical: bool) {
     crate::editor::symmetry::set_joint_euler_with_symmetry(pose, joint, euler, symmetrical);
+}
+
+pub fn set_active_joint_euler(
+    session: &mut EditorSession,
+    poses: &HashMap<String, Pose>,
+    joint: &str,
+    euler: EulerDeg,
+) {
+    let symmetrical = session.joints.symmetrical;
+    match session.tab {
+        EditorTab::Pose => set_joint_euler(&mut session.pose.draft, joint, euler, symmetrical),
+        EditorTab::Animation => {
+            let idx = session.animation.selected_keyframe;
+            session.animation.playhead_ms = crate::editor::timeline::keyframe_arrival_ms(
+                &session.animation.draft.keyframes,
+                idx,
+            );
+            session.animation.playing = false;
+            if let Some(kf) = session.animation.draft.keyframes.get_mut(idx) {
+                crate::editor::keyframe_joints::set_keyframe_joint_euler(
+                    kf, poses, joint, euler, symmetrical,
+                );
+            }
+        }
+    }
+}
+
+pub fn euler_for_active_joint(
+    session: &EditorSession,
+    poses: &HashMap<String, Pose>,
+    joint: &str,
+) -> EulerDeg {
+    match session.tab {
+        EditorTab::Pose => euler_for_joint(&session.pose.draft, joint),
+        EditorTab::Animation => session
+            .animation
+            .draft
+            .keyframes
+            .get(session.animation.selected_keyframe)
+            .map(|kf| crate::editor::keyframe_joints::euler_for_keyframe_joint(kf, poses, joint))
+            .unwrap_or_default(),
+    }
+}
+
+pub fn joint_editing_active(session: &EditorSession) -> bool {
+    match session.tab {
+        EditorTab::Pose => true,
+        EditorTab::Animation => crate::editor::keyframe_joints::keyframe_joint_editing_enabled(
+            &session.animation.draft,
+        ),
+    }
 }

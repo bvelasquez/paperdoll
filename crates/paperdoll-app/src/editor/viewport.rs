@@ -17,9 +17,11 @@
 //! (`editor_apply_preview` → `advance_playback`) shows the result live, and the
 //! sliders / save flow continue to work on exactly the same data.
 
-use super::session::{euler_for_joint, set_joint_euler, EditorSession, EditorTab, PoseEditorState};
+use super::session::{
+    euler_for_active_joint, joint_editing_active, set_active_joint_euler, EditorSession,
+};
 use crate::camera_controls::ViewportCamera;
-use crate::rig_bridge::{ChoreographyCameraEntity, RigEntities, RigSkeleton};
+use crate::rig_bridge::{ChoreographyCameraEntity, PoseLibrary, RigEntities, RigSkeleton};
 use bevy::gizmos::prelude::*;
 use bevy::input::mouse::MouseButton;
 use bevy::math::Isometry3d;
@@ -232,8 +234,8 @@ pub fn editor_viewport_manip(
         draw_skeleton(&mut gizmos, &skeleton, &rig_entities, &transforms, &session, &state);
     }
 
-    // 3) Interaction (pose tab only) — needs the cursor position.
-    if session.tab != EditorTab::Pose {
+    // 3) Joint pick / orbit — pose tab and animation tab (when joint editing enabled).
+    if !joint_editing_active(&session) {
         return;
     }
     let Some(cursor) = window.cursor_position() else {
@@ -299,9 +301,9 @@ pub fn editor_viewport_manip(
             let moved = (cursor - press.start).length() > NAV_DRAG_THRESHOLD_PX;
             if !moved {
                 if let Some(joint) = press.joint_under {
-                    session.pose.selected_joint = Some(joint);
+                    session.joints.selected_joint = Some(joint);
                 } else if let Some(joint) = state.hover_joint.clone() {
-                    session.pose.selected_joint = Some(joint);
+                    session.joints.selected_joint = Some(joint);
                 }
             }
         }
@@ -336,19 +338,21 @@ pub fn editor_corner_widget(
     mut session: ResMut<EditorSession>,
     prefs: Res<ViewportPrefs>,
     mut state: ResMut<GizmoState>,
+    poses: Res<PoseLibrary>,
 ) {
-    if !session.open || session.tab != EditorTab::Pose || !prefs.show_gizmo {
+    if !session.open || !joint_editing_active(&session) || !prefs.show_gizmo {
         state.widget_drag = None;
         return;
     }
-    let Some(name) = session.pose.selected_joint.clone() else {
+    let Some(name) = session.joints.selected_joint.clone() else {
         state.widget_drag = None;
         return;
     };
     let Ok(ctx) = contexts.ctx_mut() else {
         return;
     };
-    let symmetrical = session.pose.symmetrical;
+    let _symmetrical = session.joints.symmetrical;
+    let poses_guard = poses.0.read().unwrap();
 
     egui::Area::new(egui::Id::new("editor_axis_strips"))
         .anchor(egui::Align2::CENTER_BOTTOM, [0.0, -10.0])
@@ -371,7 +375,7 @@ pub fn editor_corner_widget(
                             .on_hover_text("Deselect joint")
                             .clicked()
                         {
-                            session.pose.selected_joint = None;
+                            session.joints.selected_joint = None;
                         }
                     });
                     ui.label(
@@ -385,7 +389,16 @@ pub fn editor_corner_widget(
                         (1usize, AXIS_Y_EGUI, "Y"),
                         (2usize, AXIS_Z_EGUI, "Z"),
                     ] {
-                        axis_strip(ui, &mut session.pose, &name, axis, color, label, &mut state, symmetrical);
+                        axis_strip(
+                            ui,
+                            &mut session,
+                            &poses_guard,
+                            &name,
+                            axis,
+                            color,
+                            label,
+                            &mut state,
+                        );
                     }
                 });
         });
@@ -394,15 +407,15 @@ pub fn editor_corner_widget(
 /// One axis row: colored track + draggable knob + live angle readout.
 fn axis_strip(
     ui: &mut egui::Ui,
-    pose: &mut PoseEditorState,
+    session: &mut EditorSession,
+    poses: &std::collections::HashMap<String, paperdoll_rig::Pose>,
     name: &str,
     axis: usize,
     color: egui::Color32,
     label: &str,
     state: &mut GizmoState,
-    symmetrical: bool,
 ) {
-    let euler = euler_for_joint(&pose.draft, name);
+    let euler = euler_for_active_joint(session, poses, name);
     let angle = match axis {
         0 => euler.x,
         1 => euler.y,
@@ -485,7 +498,7 @@ fn axis_strip(
             wd.accum += delta.x / wd.scale_px;
             let q = wd.start_q * Quat::from_axis_angle(wd.kind.local_axis(), wd.accum);
             let euler = EulerDeg::from_quat(q);
-            set_joint_euler(&mut pose.draft, &wd.joint, euler, symmetrical);
+            set_active_joint_euler(session, poses, &wd.joint, euler);
             state.widget_drag = Some(wd);
         }
     }
@@ -509,7 +522,7 @@ fn draw_skeleton(
     session: &EditorSession,
     state: &GizmoState,
 ) {
-    let selected = session.pose.selected_joint.as_deref();
+    let selected = session.joints.selected_joint.as_deref();
     let hover = state.hover_joint.as_deref();
 
     // With a joint selected, everything outside its immediate chain (selected +

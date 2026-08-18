@@ -1,35 +1,61 @@
 name: say_yes
-description: >
-  Nodding yes with a light bounce: chin down/up twice while soft knees dip.
-  Uses head_nod_down / head_nod_up.
+description: |
+  Nodding yes with a light bounce: chin down/up twice while soft knees dip. Uses head_nod_down / head_nod_up.
 loop: false
-play_automatically: true
 keyframes:
-  - pose: idle
-    duration_ms: 140
-    easing: ease_out
-    camera:
-      yaw_deg: 12.0
-      pitch_deg: 3.0
-      distance: 2.0
-      look_at: [0.0, 1.28, 0.0]
-  - pose: head_nod_down
-    duration_ms: 220
-    easing: ease_in_out
-  - pose: head_nod_up
-    duration_ms: 240
-    easing: ease_in_out
-  - pose: head_nod_down
-    duration_ms: 220
-    easing: ease_in_out
-  - pose: head_nod_up
-    duration_ms: 260
-    easing: ease_out
-  - pose: idle
-    duration_ms: 320
-    easing: ease_in_out
-    camera:
-      yaw_deg: 12.0
-      pitch_deg: 3.0
-      distance: 2.0
-      look_at: [0.0, 1.28, 0.0]
+- pose: idle
+  joints: null
+  camera:
+    yaw_deg: 12.0
+    pitch_deg: 3.0
+    distance: 2.0
+    look_at:
+    - 0.0
+    - 1.28
+    - 0.0
+  expressions: null
+  hold: null
+  duration_ms: 140
+  easing: ease_out
+- pose: head_nod_down
+  joints: null
+  camera: null
+  expressions: null
+  hold: null
+  duration_ms: 220
+  easing: ease_in_out
+- pose: head_nod_up
+  joints: null
+  camera: null
+  expressions: null
+  hold: null
+  duration_ms: 240
+  easing: ease_in_out
+- pose: head_nod_down
+  joints: null
+  camera: null
+  expressions: null
+  hold: null
+  duration_ms: 220
+  easing: ease_in_out
+- pose: head_nod_up
+  joints: null
+  camera: null
+  expressions: null
+  hold: null
+  duration_ms: 260
+  easing: ease_out
+- pose: idle
+  joints: null
+  camera:
+    yaw_deg: 12.0
+    pitch_deg: 3.0
+    distance: 2.0
+    look_at:
+    - 0.0
+    - 1.28
+    - 0.0
+  expressions: null
+  hold: null
+  duration_ms: 320
+  easing: ease_in_out
